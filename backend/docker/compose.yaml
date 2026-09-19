@@ -1,0 +1,36 @@
+# docker compose up -d --build
+# network_mode: host — same shared localhost as Tour de Cloud; ports 8080 and 3306 must be free.
+
+name: tda-typescript-express-template
+
+services:
+  server:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: tda-typescript-express-template
+    restart: unless-stopped
+    network_mode: host
+    env_file: ../.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    restart: always
+    network_mode: host
+    environment:
+      MYSQL_DATABASE: product
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ppassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:
