@@ -18,6 +18,8 @@ containers:
     env:
       MYSQL_DATABASE: product
       MYSQL_ROOT_PASSWORD: password
+      MYSQL_USER: tda_user
+      MYSQL_PASSWORD: "strongPassword?"
     port: 3306
   - name: caddy
     image: registry.tourde.cloud/macka_cervene/caddy

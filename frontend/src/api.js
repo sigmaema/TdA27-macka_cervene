@@ -1,6 +1,12 @@
 const envApiUrl = import.meta.env.VITE_API_URL;
 const API_URL = (envApiUrl && envApiUrl.trim()) ? envApiUrl : (import.meta.env.DEV ? "http://localhost:8080/api" : "/api");
 
+export async function getHealth() {
+  const res = await fetch(`${API_URL}/v1/health`);
+  if (!res.ok) throw new Error(`Health check failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getProducts() {
   const res = await fetch(`${API_URL}/product`);
   return res.json();

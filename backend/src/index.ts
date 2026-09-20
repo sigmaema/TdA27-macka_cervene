@@ -23,7 +23,8 @@ for (let attempt = 1; ; attempt++) {
     break;
   } catch (error) {
     if (attempt === 60) throw error;
-    console.log("Waiting for database...");
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`Waiting for database (attempt ${attempt}): ${message}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
@@ -38,6 +39,10 @@ const app = express();
 // Allow a frontend dev server on another port (e.g. localhost:3001) to call the API.
 app.use(cors());
 app.use(express.json());
+
+app.get("/api/v1/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 app.get("/api/product", async (_req, res) => {
   const [products] = await db.query<Product[]>("SELECT id, name, cost FROM product ORDER BY id");
