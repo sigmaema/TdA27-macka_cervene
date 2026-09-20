@@ -7,7 +7,7 @@ containers:
       PORT: "3001"
       VITE_API_URL: "/api"
   - name: server
-    image: registry.tourde.cloud/<slug>/server
+    image: registry.tourde.cloud/macka_cervene/server
     port: 8080
     env:
       DATABASE_URL: mysql://tda_user:strongPassword%3F@127.0.0.1:3306/product
