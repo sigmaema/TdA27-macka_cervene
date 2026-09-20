@@ -38,7 +38,7 @@ export default function App() {
 
   return (
     <div>
-      <h1>School Buffet</h1>
+      <h1>Think different Academy</h1>
 
       <ProductForm
         onSubmit={editingProduct ? (p) => handleUpdate(editingProduct.id, p) : handleCreate}
