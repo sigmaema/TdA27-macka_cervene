@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getHealth, getProducts, createProduct, updateProduct, deleteProduct } from "./api";
+import { getHealth, getTeam, getProducts, createProduct, updateProduct, deleteProduct } from "./api";
 import ProductForm from "./ProductForm";
 import ProductTable from "./ProductTable";
 
@@ -7,6 +7,7 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
+  const [team, setTeam] = useState(null);
 
   async function loadProducts() {
     try {
@@ -22,6 +23,9 @@ export default function App() {
     getHealth()
       .then((data) => setHealthStatus(data.status))
       .catch((error) => console.error("Failed to load health status:", error));
+    getTeam()
+      .then(setTeam)
+      .catch((error) => console.error("Failed to load team:", error));
   }, []);
 
   async function handleCreate(product) {
@@ -44,6 +48,11 @@ export default function App() {
     <div>
       <h1>Think different Academy</h1>
       {healthStatus === "ok" && <p>Status: OK</p>}
+      {team && (
+        <footer>
+          Tým: {team.name} | Členové: {team.members.join(", ")}
+        </footer>
+      )}
 
       <ProductForm
         onSubmit={editingProduct ? (p) => handleUpdate(editingProduct.id, p) : handleCreate}

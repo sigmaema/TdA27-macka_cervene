@@ -7,6 +7,12 @@ export async function getHealth() {
   return res.json();
 }
 
+export async function getTeam() {
+  const res = await fetch(`${API_URL}/v1/team`);
+  if (!res.ok) throw new Error(`Team request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getProducts() {
   const res = await fetch(`${API_URL}/product`);
   return res.json();
