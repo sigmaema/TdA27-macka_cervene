@@ -10,3 +10,4 @@
 # Local Docker configuration
 /compose.local.yaml
 /caddy/Caddyfile.local
+/database-setup.txt

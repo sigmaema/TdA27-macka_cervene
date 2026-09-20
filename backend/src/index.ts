@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { readFile } from "node:fs/promises";
 import mysql from "mysql2/promise";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -15,32 +16,15 @@ interface TeamMember extends RowDataPacket {
 
 // DATABASE_URL, e.g. mysql://tda_user:strongPassword%3F@127.0.0.1:3306/product
 const db = mysql.createPool(process.env.DATABASE_URL!);
+const schemaSql = await readFile(new URL("../docker/schema.sql", import.meta.url), "utf8");
 
 // The database may still be starting up (no startup order on Tour de Cloud), so retry.
 for (let attempt = 1; ; attempt++) {
   try {
-    await db.query(`CREATE TABLE IF NOT EXISTS product (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      cost INT NOT NULL
-    )`);
-    await db.query(`CREATE TABLE IF NOT EXISTS team (
-      id INT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL
-    )`);
-    await db.query(`CREATE TABLE IF NOT EXISTS team_member (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      team_id INT NOT NULL,
-      name VARCHAR(100) NOT NULL,
-      FOREIGN KEY (team_id) REFERENCES team(id)
-    )`);
-    await db.query(
-      "INSERT IGNORE INTO team (id, name) VALUES (1, 'Macka Cervene')",
-    );
-    await db.query("DELETE FROM team_member WHERE team_id = 1");
-    await db.query(
-      "INSERT INTO team_member (team_id, name) VALUES (1, 'Ema'), (1, 'Amálie')",
-    );
+    for (const statement of schemaSql.split(";")) {
+      const sql = statement.trim();
+      if (sql) await db.query(sql);
+    }
     break;
   } catch (error) {
     if (attempt === 60) throw error;
