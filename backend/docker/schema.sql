@@ -16,6 +16,20 @@ CREATE TABLE IF NOT EXISTS team_member (
   FOREIGN KEY (team_id) REFERENCES team(id)
 );
 
+CREATE TABLE IF NOT EXISTS stops (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  image_url VARCHAR(255),
+  is_transfer BOOLEAN NOT NULL DEFAULT FALSE,
+  x DECIMAL(10, 6),
+  y DECIMAL(10, 6),
+  wheelchair_accessible BOOLEAN NOT NULL DEFAULT FALSE,
+  has_shelter BOOLEAN NOT NULL DEFAULT FALSE,
+  has_bench BOOLEAN NOT NULL DEFAULT FALSE,
+  has_ticket_machine BOOLEAN NOT NULL DEFAULT FALSE,
+  has_display BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 INSERT INTO team (id, name) VALUES (1, 'Macka Cervene')
   ON DUPLICATE KEY UPDATE name = VALUES(name);
 
