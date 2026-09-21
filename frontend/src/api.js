@@ -19,6 +19,12 @@ export async function getStops() {
   return res.json();
 }
 
+export async function getStop(id) {
+  const res = await fetch(`${API_URL}/v1/stops/${id}`);
+  if (!res.ok) throw new Error(`Stop request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getProducts() {
   const res = await fetch(`${API_URL}/product`);
   return res.json();

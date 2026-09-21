@@ -150,6 +150,15 @@ app.get("/api/v1/stops", async (_req, res) => {
   res.json(stops);
 });
 
+app.get("/api/v1/stops/:id", async (req, res) => {
+  const [[stop]] = await db.execute<Stop[]>("SELECT * FROM stops WHERE id = ?", [Number(req.params.id)]);
+  if (!stop) {
+    res.status(404).json({ message: "Zastávka neexistuje" });
+    return;
+  }
+  res.json(stop);
+});
+
 app.get("/api/product", async (_req, res) => {
   const [products] = await db.query<Product[]>("SELECT id, name, cost FROM product ORDER BY id");
   res.json(products);
