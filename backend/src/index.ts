@@ -200,6 +200,17 @@ function stopResponse(stop: Stop) {
 }
 
 const app = express();
+const ADMIN_API_KEY = "Kyqc49jIM+5+D0Sed8ZQ671gxkd7W/bBTWjDtZ0Zrgk=";
+
+function requireAdminApiKey(req: Request, res: Response, next: NextFunction) {
+  const authorization = req.header("Authorization");
+  if (authorization !== `Bearer ${ADMIN_API_KEY}`) {
+    res.status(401).json({ error: "Missing or invalid administrator API key" });
+    return;
+  }
+  next();
+}
+
 // Allow a frontend dev server on another port (e.g. localhost:3001) to call the API.
 app.use(cors());
 app.use(express.json());
@@ -224,7 +235,7 @@ app.get("/api/v1/stops", async (_req, res) => {
 });
 
 app.get("/api/v1/stops/:id", async (req, res) => {
-  const id = parseStopId(req.params.id);
+  const id = parseStopId(String(req.params.id));
   if (id === null) {
     invalidStopId(res);
     return;
@@ -240,7 +251,7 @@ app.get("/api/v1/stops/:id", async (req, res) => {
   res.status(200).json(stopResponse(stop));
 });
 
-app.post("/api/v1/stops", async (req, res) => {
+app.post("/api/v1/stops", requireAdminApiKey, async (req, res) => {
   const data = parseStop(req.body);
   if (!data) {
     res.status(400).json({ error: "Invalid input data" });
@@ -258,13 +269,13 @@ app.post("/api/v1/stops", async (req, res) => {
   res.status(201).json(stopResponse(stop));
 });
 
-app.put("/api/v1/stops/:id", async (req, res) => {
+app.put("/api/v1/stops/:id", requireAdminApiKey, async (req, res) => {
   const data = parseStop(req.body);
   if (!data) {
     res.status(400).json({ error: "Invalid input data" });
     return;
   }
-  const id = parseStopId(req.params.id);
+  const id = parseStopId(String(req.params.id));
   if (id === null) {
     invalidStopId(res);
     return;
@@ -287,8 +298,8 @@ app.put("/api/v1/stops/:id", async (req, res) => {
   res.status(200).json(stopResponse(stop));
 });
 
-app.delete("/api/v1/stops/:id", async (req, res) => {
-  const id = parseStopId(req.params.id);
+app.delete("/api/v1/stops/:id", requireAdminApiKey, async (req, res) => {
+  const id = parseStopId(String(req.params.id));
   if (id === null) {
     invalidStopId(res);
     return;
