@@ -30,6 +30,14 @@ interface Stop extends RowDataPacket {
   has_display: boolean;
 }
 
+interface StopInput {
+  name: string;
+  image_url: string | null;
+  wheelchair_accessible: boolean;
+  has_shelter: boolean;
+  has_ticket_machine: boolean;
+}
+
 // DATABASE_URL, e.g. mysql://tda_user:strongPassword%3F@127.0.0.1:3306/product
 const db = mysql.createPool(process.env.DATABASE_URL!);
 const schemaSql = await readFile(new URL("../docker/schema.sql", import.meta.url), "utf8");
@@ -128,6 +136,40 @@ function parseProduct(body: unknown): { name: string; cost: number } | null {
   return { name, cost: cost as number };
 }
 
+function parseStop(body: unknown): StopInput | null {
+  const data = (body ?? {}) as Record<string, unknown>;
+  if (
+    typeof data.name !== "string" ||
+    data.name.length === 0 ||
+    data.name.length > 255 ||
+    (data.image_url !== undefined && data.image_url !== null && typeof data.image_url !== "string") ||
+    (typeof data.image_url === "string" && data.image_url.length > 255) ||
+    typeof data.wheelchair_accessible !== "boolean" ||
+    typeof data.has_shelter !== "boolean" ||
+    typeof data.has_ticket_machine !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    name: data.name,
+    image_url: data.image_url === undefined ? null : data.image_url as string | null,
+    wheelchair_accessible: data.wheelchair_accessible,
+    has_shelter: data.has_shelter,
+    has_ticket_machine: data.has_ticket_machine,
+  };
+}
+
+function stopResponse(stop: Stop) {
+  return {
+    id: stop.id,
+    name: stop.name,
+    image_url: stop.image_url,
+    wheelchair_accessible: Boolean(stop.wheelchair_accessible),
+    has_shelter: Boolean(stop.has_shelter),
+    has_ticket_machine: Boolean(stop.has_ticket_machine),
+  };
+}
+
 const app = express();
 // Allow a frontend dev server on another port (e.g. localhost:3001) to call the API.
 app.use(cors());
@@ -146,17 +188,74 @@ app.get("/api/v1/team", async (_req, res) => {
 });
 
 app.get("/api/v1/stops", async (_req, res) => {
-  const [stops] = await db.query<Stop[]>("SELECT * FROM stops ORDER BY name");
-  res.json(stops);
+  const [stops] = await db.query<Stop[]>(
+    "SELECT id, name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine FROM stops ORDER BY name",
+  );
+  res.status(200).json(stops.map(stopResponse));
 });
 
 app.get("/api/v1/stops/:id", async (req, res) => {
-  const [[stop]] = await db.execute<Stop[]>("SELECT * FROM stops WHERE id = ?", [Number(req.params.id)]);
+  const [[stop]] = await db.execute<Stop[]>(
+    "SELECT id, name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine FROM stops WHERE id = ?",
+    [Number(req.params.id)],
+  );
   if (!stop) {
     res.status(404).json({ message: "Zastávka neexistuje" });
     return;
   }
-  res.json(stop);
+  res.status(200).json(stopResponse(stop));
+});
+
+app.post("/api/v1/stops", async (req, res) => {
+  const data = parseStop(req.body);
+  if (!data) {
+    res.status(400).json({ message: "Neplatná data zastávky" });
+    return;
+  }
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO stops (name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine)
+     VALUES (?, ?, ?, ?, ?)`,
+    [data.name, data.image_url, data.wheelchair_accessible, data.has_shelter, data.has_ticket_machine],
+  );
+  const [[stop]] = await db.execute<Stop[]>(
+    "SELECT id, name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine FROM stops WHERE id = ?",
+    [result.insertId],
+  );
+  res.status(201).json(stopResponse(stop));
+});
+
+app.put("/api/v1/stops/:id", async (req, res) => {
+  const data = parseStop(req.body);
+  if (!data) {
+    res.status(400).json({ message: "Neplatná data zastávky" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [[existingStop]] = await db.execute<Stop[]>("SELECT id FROM stops WHERE id = ?", [id]);
+  if (!existingStop) {
+    res.status(404).json({ message: "Zastávka neexistuje" });
+    return;
+  }
+  await db.execute(
+    `UPDATE stops
+     SET name = ?, image_url = ?, wheelchair_accessible = ?, has_shelter = ?, has_ticket_machine = ?
+     WHERE id = ?`,
+    [data.name, data.image_url, data.wheelchair_accessible, data.has_shelter, data.has_ticket_machine, id],
+  );
+  const [[stop]] = await db.execute<Stop[]>(
+    "SELECT id, name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine FROM stops WHERE id = ?",
+    [id],
+  );
+  res.status(200).json(stopResponse(stop));
+});
+
+app.delete("/api/v1/stops/:id", async (req, res) => {
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM stops WHERE id = ?", [Number(req.params.id)]);
+  if (result.affectedRows === 0) {
+    res.status(404).json({ message: "Zastávka neexistuje" });
+    return;
+  }
+  res.status(204).send();
 });
 
 app.get("/api/product", async (_req, res) => {

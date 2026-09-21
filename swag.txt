@@ -1,0 +1,173 @@
+openapi: 3.1.0
+
+info:
+  title: Think different Transit API
+  version: 1.0.0
+  description: API for managing public transport stops in Think different Academy.
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Stops
+    description: Stop management
+
+paths:
+  /stops:
+    get:
+      tags:
+        - Stops
+      summary: List all stops
+      operationId: getStops
+      responses:
+        "200":
+          description: List of stops
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Stop"
+
+    post:
+      tags:
+        - Stops
+      summary: Create a new stop
+      operationId: createStop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StopInput"
+      responses:
+        "201":
+          description: Stop created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stop"
+
+  /stops/{id}:
+    parameters:
+      - $ref: "#/components/parameters/StopId"
+
+    get:
+      tags:
+        - Stops
+      summary: Get stop detail
+      operationId: getStop
+      responses:
+        "200":
+          description: Stop detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stop"
+
+    put:
+      tags:
+        - Stops
+      summary: Update a stop
+      operationId: updateStop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StopInput"
+      responses:
+        "200":
+          description: Stop updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stop"
+
+    delete:
+      tags:
+        - Stops
+      summary: Delete a stop
+      operationId: deleteStop
+      responses:
+        "204":
+          description: Stop deleted successfully
+
+components:
+  parameters:
+    StopId:
+      name: id
+      in: path
+      required: true
+      description: Stop ID
+      schema:
+        type: integer
+      example: 12
+
+  schemas:
+    Stop:
+      type: object
+      required:
+        - id
+        - name
+        - image_url
+        - wheelchair_accessible
+        - has_shelter
+        - has_ticket_machine
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 12
+
+        name:
+          type: string
+          example: Cejl
+
+        image_url:
+          type:
+            - string
+            - "null"
+          example: https://example.com/stops/cejl.jpg
+
+        wheelchair_accessible:
+          type: boolean
+          example: true
+
+        has_shelter:
+          type: boolean
+          example: true
+
+        has_ticket_machine:
+          type: boolean
+          example: false
+
+    StopInput:
+      type: object
+      required:
+        - name
+        - wheelchair_accessible
+        - has_shelter
+        - has_ticket_machine
+      properties:
+        name:
+          type: string
+          example: Cejl
+
+        image_url:
+          type:
+            - string
+            - "null"
+          example: https://example.com/stops/cejl.jpg
+
+        wheelchair_accessible:
+          type: boolean
+          example: true
+
+        has_shelter:
+          type: boolean
+          example: true
+
+        has_ticket_machine:
+          type: boolean
+          example: false

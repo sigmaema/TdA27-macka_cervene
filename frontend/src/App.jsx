@@ -91,9 +91,7 @@ export default function App() {
                 <button className="back-button" onClick={() => navigate("/stops", true)}>← Zpět na seznam</button>
                 <p className="eyebrow">Zastávka #{selectedStop.id}</p>
                 <h3>{selectedStop.name}</h3>
-                <p className="stop-lines">Linky: {selectedStop.lines || "neuvedeno"}</p>
                 <dl className="stop-facts">
-                  <div><dt>Přestupní</dt><dd>{selectedStop.is_transfer ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Bezbariérový přístup</dt><dd>{selectedStop.wheelchair_accessible ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Přístřešek</dt><dd>{selectedStop.has_shelter ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Lavička</dt><dd>{selectedStop.has_bench ? "Ano" : "Ne"}</dd></div>
@@ -114,10 +112,8 @@ export default function App() {
                   <img className="stop-image" src={stop.image_url} alt={`Zastávka ${stop.name}`} />
                   <div className="stop-card-heading">
                     <span className="stop-id">#{stop.id}</span>
-                    {stop.is_transfer && <span className="stop-badge">Přestupní</span>}
                   </div>
                   <h3>{stop.name}</h3>
-                  <span className="stop-lines">Linky: {stop.lines || "neuvedeno"}</span>
                   <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
                   <span className="stop-open">Zobrazit detail →</span>
                 </article>
