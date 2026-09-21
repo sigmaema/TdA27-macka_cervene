@@ -150,6 +150,41 @@ h2 {
   letter-spacing: 0.03em;
 }
 
+.search-controls {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.search-field {
+  display: grid;
+  gap: 7px;
+  width: min(100%, 520px);
+  color: #63718a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.search-field input {
+  min-height: 45px;
+}
+
+.clear-search {
+  min-height: 45px;
+  padding: 0 16px;
+  border: 1px solid #0070BB;
+  background: #ffffff;
+  color: #0070BB;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.clear-search:hover {
+  background: #dbeeff;
+}
+
 .product-form {
   display: flex;
   align-items: end;
@@ -437,6 +472,15 @@ tbody tr:hover {
   .product-form {
     display: grid;
     align-items: stretch;
+  }
+
+  .search-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-field {
+    width: 100%;
   }
 
   .field {

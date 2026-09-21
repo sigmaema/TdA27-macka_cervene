@@ -4,6 +4,7 @@ import { getHealth, getTeam, getStop, getStops } from "./api";
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [stops, setStops] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedStop, setSelectedStop] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
   const [team, setTeam] = useState(null);
@@ -49,6 +50,18 @@ export default function App() {
   }, [stopId]);
 
   const isDetail = Boolean(stopId);
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("cs-CZ");
+  const filteredStops = stops.filter((stop) => {
+    if (!normalizedQuery) return true;
+    const searchableText = [
+      stop.name,
+      stop.image_url,
+      stop.wheelchair_accessible ? "bezbarierovy pristup" : "bezbarierovy pristup ne",
+      stop.has_shelter ? "pristresok" : "bez pristresku",
+      stop.has_ticket_machine ? "automat na jizdenky" : "bez automatu na jizdenky",
+    ].join(" ").toLocaleLowerCase("cs-CZ");
+    return searchableText.includes(normalizedQuery);
+  });
 
   return (
     <div className="app-shell">
@@ -84,6 +97,22 @@ export default function App() {
             </div>
             {healthStatus === "ok" && <span className="health-label">Stav API: OK</span>}
           </div>
+          {!isDetail && (
+            <div className="search-controls">
+              <label className="search-field">
+                <span>Hledat zastávku nebo vlastnost</span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Např. přístřešek nebo Turing"
+                />
+              </label>
+              {searchQuery && (
+                <button className="clear-search" onClick={() => setSearchQuery("")}>Vymazat</button>
+              )}
+            </div>
+          )}
           {isDetail && selectedStop ? (
             <article className="stop-detail">
               <img className="stop-detail-image" src={selectedStop.image_url} alt={`Zastávka ${selectedStop.name}`} />
@@ -105,9 +134,14 @@ export default function App() {
               <strong>Zatím tu nejsou žádné zastávky</strong>
               <span>Seznam zastávek je momentálně prázdný.</span>
             </div>
+          ) : !isDetail && filteredStops.length === 0 ? (
+            <div className="empty-state">
+              <strong>Žádná zastávka neodpovídá hledání</strong>
+              <span>Zkuste jiný název nebo vlastnost, případně vyhledávání vymažte.</span>
+            </div>
           ) : !isDetail ? (
             <div className="stops-grid">
-              {stops.map((stop) => (
+              {filteredStops.map((stop) => (
                 <article className="stop-card" key={stop.id} onClick={() => openStop(stop.id)}>
                   <img className="stop-image" src={stop.image_url} alt={`Zastávka ${stop.name}`} />
                   <div className="stop-card-heading">
