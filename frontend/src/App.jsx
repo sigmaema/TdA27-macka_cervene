@@ -7,6 +7,7 @@ export default function App() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStop, setSelectedStop] = useState(null);
+  const [stopError, setStopError] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
   const [team, setTeam] = useState(null);
   const stopId = path.match(/^\/stops\/(\d+)\/?$/)?.[1];
@@ -36,9 +37,14 @@ export default function App() {
 
   useEffect(() => {
     if (stopId) {
+      setSelectedStop(null);
+      setStopError(null);
       getStop(stopId)
         .then(setSelectedStop)
-        .catch((error) => console.error("Nepodařilo se načíst detail zastávky:", error));
+        .catch((error) => {
+          console.error("Nepodařilo se načíst detail zastávky:", error);
+          setStopError("Zastávku se nepodařilo načíst. Zkontrolujte připojení nebo její ID.");
+        });
     } else {
       loadStops();
     }
@@ -125,9 +131,22 @@ export default function App() {
               )}
             </div>
           )}
-          {isDetail && selectedStop ? (
+          {isDetail && stopError ? (
+            <div className="empty-state error-state">
+              <strong>{stopError}</strong>
+              <button className="back-button" onClick={() => navigate("/stops", true)}>Zpět na seznam zastávek</button>
+            </div>
+          ) : isDetail && !selectedStop ? (
+            <div className="empty-state">
+              <strong>Načítání detailu zastávky…</strong>
+            </div>
+          ) : isDetail && selectedStop ? (
             <article className="stop-detail">
-              <img className="stop-detail-image" src={selectedStop.image_url} alt={`Zastávka ${selectedStop.name}`} />
+              {selectedStop.image_url ? (
+                <img className="stop-detail-image" src={selectedStop.image_url} alt={`Zastávka ${selectedStop.name}`} />
+              ) : (
+                <div className="stop-detail-image image-placeholder">Obrázek není k dispozici</div>
+              )}
               <div className="stop-detail-content">
                 <button className="back-button" onClick={() => navigate("/stops", true)}>← Zpět na seznam</button>
                 <p className="eyebrow">Zastávka #{selectedStop.id}</p>
