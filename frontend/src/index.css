@@ -53,7 +53,7 @@ body {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #a7b4c5;
+  background: #0070BB;
 }
 
 .status-dot.is-online {
@@ -179,6 +179,21 @@ h2 {
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+}
+
+.search-button {
+  min-height: 45px;
+  padding: 0 18px;
+  border: 0;
+  background: #0070BB;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.search-button:hover {
+  background: #0257A5;
 }
 
 .clear-search:hover {
@@ -416,7 +431,7 @@ tbody tr:hover {
 
 .stop-facts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1px;
   margin-top: 26px;
   background: #d5e3f0;

@@ -4,6 +4,7 @@ import { getHealth, getTeam, getStop, getStops } from "./api";
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [stops, setStops] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStop, setSelectedStop] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
@@ -50,17 +51,24 @@ export default function App() {
   }, [stopId]);
 
   const isDetail = Boolean(stopId);
-  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("cs-CZ");
+  function normalizeSearchText(value) {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("cs-CZ");
+  }
+
+  const normalizedQuery = normalizeSearchText(searchQuery.trim());
   const filteredStops = stops.filter((stop) => {
     if (!normalizedQuery) return true;
     const searchableText = [
       stop.name,
       stop.image_url,
-      stop.wheelchair_accessible ? "bezbarierovy pristup" : "bezbarierovy pristup ne",
-      stop.has_shelter ? "pristresok" : "bez pristresku",
-      stop.has_ticket_machine ? "automat na jizdenky" : "bez automatu na jizdenky",
-    ].join(" ").toLocaleLowerCase("cs-CZ");
-    return searchableText.includes(normalizedQuery);
+      stop.wheelchair_accessible ? "bezbarierovy pristup ano" : "",
+      stop.has_shelter ? "pristresek ano" : "",
+      stop.has_ticket_machine ? "automat na jizdenky ano" : "",
+    ].join(" ");
+    return normalizeSearchText(searchableText).includes(normalizedQuery);
   });
 
   return (
@@ -103,13 +111,17 @@ export default function App() {
                 <span>Hledat zastávku nebo vlastnost</span>
                 <input
                   type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  value={searchInput}
+                  onChange={(event) => {
+                    setSearchInput(event.target.value);
+                    setSearchQuery(event.target.value);
+                  }}
                   placeholder="Např. přístřešek nebo Turing"
                 />
               </label>
-              {searchQuery && (
-                <button className="clear-search" onClick={() => setSearchQuery("")}>Vymazat</button>
+              <button className="search-button" onClick={() => setSearchQuery(searchInput)}>Vyhledat</button>
+              {(searchInput || searchQuery) && (
+                <button className="clear-search" onClick={() => { setSearchInput(""); setSearchQuery(""); }}>Vymazat</button>
               )}
             </div>
           )}
@@ -123,9 +135,7 @@ export default function App() {
                 <dl className="stop-facts">
                   <div><dt>Bezbariérový přístup</dt><dd>{selectedStop.wheelchair_accessible ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Přístřešek</dt><dd>{selectedStop.has_shelter ? "Ano" : "Ne"}</dd></div>
-                  <div><dt>Lavička</dt><dd>{selectedStop.has_bench ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Automat na jízdenky</dt><dd>{selectedStop.has_ticket_machine ? "Ano" : "Ne"}</dd></div>
-                  <div><dt>Informační displej</dt><dd>{selectedStop.has_display ? "Ano" : "Ne"}</dd></div>
                 </dl>
               </div>
             </article>
