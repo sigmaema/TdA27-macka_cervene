@@ -67,11 +67,13 @@ export default function App() {
             <div className="stops-grid">
               {stops.map((stop) => (
                 <article className="stop-card" key={stop.id}>
+                  <img className="stop-image" src={stop.image_url} alt={`Zastávka ${stop.name}`} />
                   <div className="stop-card-heading">
                     <span className="stop-id">#{stop.id}</span>
                     {stop.is_transfer && <span className="stop-badge">Přestupní</span>}
                   </div>
                   <h3>{stop.name}</h3>
+                  <span className="stop-lines">Linky: {stop.lines || "neuvedeno"}</span>
                   <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
                 </article>
               ))}

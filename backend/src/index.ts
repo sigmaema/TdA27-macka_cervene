@@ -17,6 +17,8 @@ interface TeamMember extends RowDataPacket {
 interface Stop extends RowDataPacket {
   id: number;
   name: string;
+  lines: string;
+  transfer_lines: string;
   image_url: string | null;
   is_transfer: boolean;
   x: number | null;
@@ -31,6 +33,76 @@ interface Stop extends RowDataPacket {
 // DATABASE_URL, e.g. mysql://tda_user:strongPassword%3F@127.0.0.1:3306/product
 const db = mysql.createPool(process.env.DATABASE_URL!);
 const schemaSql = await readFile(new URL("../docker/schema.sql", import.meta.url), "utf8");
+const stopsCsv = await readFile(new URL("../docker/seed/stops.csv", import.meta.url), "utf8");
+
+function parseStopsCsv(csv: string) {
+  const [header, ...rows] = csv.trim().split(/\r?\n/);
+  const fields = header.split(",");
+  return rows.map((row) => {
+    const values = row.split(",");
+    return Object.fromEntries(fields.map((field, index) => [field, values[index] ?? ""]));
+  });
+}
+
+function imagePath(name: string) {
+  const paths: Record<string, string> = {
+    "Turing Terminal": "turingTerminal.png",
+    "Ada Exchange": "adaExchange.png",
+    "Pixel Park": "pixelPark.png",
+    "Byte Square": "byteSquare.png",
+    "Stack Garden": "stackGarden.png",
+    "Hopper Hall": "hopperHall.png",
+    "Compiler Court": "compilerCourt.png",
+    "Kernel Hub": "kernelHub.png",
+    "Syntax Square": "syntaxSquare.png",
+    "Lambda Lane": "lambdaLane.png",
+    "Campus Gate": "campusGate.png",
+    "Edison East": "edisonEast.png",
+    "Notebook Quay": "notebookQuay.png",
+    "Library Loop": "libraryLoop.png",
+    "Quantum Commons": "quantum Commons.png",
+  };
+  return `/stops/${paths[name]}`;
+}
+
+async function seedStops() {
+  const stops = parseStopsCsv(stopsCsv);
+  await db.query("DELETE FROM stops");
+  for (const stop of stops) {
+    await db.execute(
+      `INSERT INTO stops
+        (id, name, \`lines\`, transfer_lines, image_url, is_transfer, x, y,
+         wheelchair_accessible, has_shelter, has_bench, has_ticket_machine, has_display)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        Number(stop.id),
+        stop.name,
+        stop.lines,
+        stop.transfer_lines,
+        imagePath(stop.name),
+        stop.is_transfer === "true",
+        Number(stop.x),
+        Number(stop.y),
+        stop.wheelchair_accessible === "true",
+        stop.has_shelter === "true",
+        stop.has_bench === "true",
+        stop.has_ticket_machine === "true",
+        stop.has_display === "true",
+      ],
+    );
+  }
+}
+
+async function ensureStopColumns() {
+  const [columns] = await db.query<RowDataPacket[]>("SHOW COLUMNS FROM stops");
+  const names = new Set(columns.map((column) => column.Field));
+  if (!names.has("lines")) {
+    await db.query("ALTER TABLE stops ADD COLUMN `lines` VARCHAR(255) NOT NULL DEFAULT '' AFTER name");
+  }
+  if (!names.has("transfer_lines")) {
+    await db.query("ALTER TABLE stops ADD COLUMN transfer_lines VARCHAR(255) NOT NULL DEFAULT '' AFTER `lines`");
+  }
+}
 
 // The database may still be starting up (no startup order on Tour de Cloud), so retry.
 for (let attempt = 1; ; attempt++) {
@@ -39,6 +111,8 @@ for (let attempt = 1; ; attempt++) {
       const sql = statement.trim();
       if (sql) await db.query(sql);
     }
+    await ensureStopColumns();
+    await seedStops();
     break;
   } catch (error) {
     if (attempt === 60) throw error;
