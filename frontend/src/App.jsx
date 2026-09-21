@@ -1,25 +1,22 @@
 import { useState, useEffect } from "react";
-import { getHealth, getTeam, getProducts, createProduct, updateProduct, deleteProduct } from "./api";
-import ProductForm from "./ProductForm";
-import ProductTable from "./ProductTable";
+import { getHealth, getTeam, getStops } from "./api";
 
 export default function App() {
-  const [products, setProducts] = useState([]);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [stops, setStops] = useState([]);
   const [healthStatus, setHealthStatus] = useState(null);
   const [team, setTeam] = useState(null);
 
-  async function loadProducts() {
+  async function loadStops() {
     try {
-      const data = await getProducts();
-      setProducts(data);
+      const data = await getStops();
+      setStops(data);
     } catch (e) {
-      console.error("Failed to load products:", e);
+      console.error("Nepodařilo se načíst zastávky:", e);
     }
   }
 
   useEffect(() => {
-    loadProducts();
+    loadStops();
     getHealth()
       .then((data) => setHealthStatus(data.status))
       .catch((error) => console.error("Failed to load health status:", error));
@@ -28,43 +25,65 @@ export default function App() {
       .catch((error) => console.error("Failed to load team:", error));
   }, []);
 
-  async function handleCreate(product) {
-    await createProduct(product);
-    loadProducts();
-  }
-
-  async function handleUpdate(id, product) {
-    await updateProduct(id, product);
-    setEditingProduct(null);
-    loadProducts();
-  }
-
-  async function handleDelete(id) {
-    await deleteProduct(id);
-    loadProducts();
-  }
-
   return (
-    <div>
-      <h1>Think different Academy</h1>
-      {healthStatus === "ok" && <p>Status: OK</p>}
-      {team && (
-        <footer>
-          Tým: {team.name} | Členové: {team.members.join(", ")}
-        </footer>
-      )}
+    <div className="app-shell">
+      <header className="topbar">
+        <img className="brand-logo" src="/brand/logo.svg" alt="Think different Academy" />
+        <div className="status-pill">
+          <span className={`status-dot ${healthStatus === "ok" ? "is-online" : ""}`} />
+          {healthStatus === "ok" ? "Systém online" : "Připojování"}
+        </div>
+      </header>
 
-      <ProductForm
-        onSubmit={editingProduct ? (p) => handleUpdate(editingProduct.id, p) : handleCreate}
-        initial={editingProduct}
-        onCancel={editingProduct ? () => setEditingProduct(null) : null}
-      />
+      <main>
+        <section className="hero">
+          <div>
+            <p className="eyebrow">Mapa města</p>
+            <h1>Zastávky</h1>
+            <p className="hero-copy">Přehled zastávek, jejich vybavení a přístupnosti na jednom místě.</p>
+          </div>
+          {team && (
+            <aside className="team-signature">
+              <span className="signature-label">Built by</span>
+              <strong>{team.name}</strong>
+              <span>{team.members.join(" · ")}</span>
+            </aside>
+          )}
+        </section>
 
-      <ProductTable
-        products={products}
-        onEdit={setEditingProduct}
-        onDelete={handleDelete}
-      />
+        <section className="workspace" aria-label="Správa zastávek">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Databáze</p>
+              <h2>Zastávky</h2>
+            </div>
+            {healthStatus === "ok" && <span className="health-label">Stav API: OK</span>}
+          </div>
+          {stops.length === 0 ? (
+            <div className="empty-state">
+              <strong>Zatím tu nejsou žádné zastávky</strong>
+            </div>
+          ) : (
+            <div className="stops-grid">
+              {stops.map((stop) => (
+                <article className="stop-card" key={stop.id}>
+                  <div className="stop-card-heading">
+                    <span className="stop-id">#{stop.id}</span>
+                    {stop.is_transfer && <span className="stop-badge">Přestupní</span>}
+                  </div>
+                  <h3>{stop.name}</h3>
+                  <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+
+      <footer className="page-footer">
+        <span>Think different Academy</span>
+        <span>Správa zastávek</span>
+      </footer>
     </div>
   );
 }

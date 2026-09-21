@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Dosis";
+  src: url("/fonts/Dosis-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,95 +13,352 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  padding: 32px;
-  background: #111;
-  color: #ccc;
+  min-width: 320px;
   min-height: 100vh;
-  max-width: 720px;
+  margin: 0;
+  background: #FFFFFF;
+  color: #14213d;
+  font-family: "Dosis", sans-serif;
+}
+
+.app-shell {
+  max-width: 1180px;
   margin: 0 auto;
+  padding: 28px 34px 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+}
+
+.brand-logo {
+  width: 210px;
+  height: auto;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0d4778;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #a7b4c5;
+}
+
+.status-dot.is-online {
+  background: #6DD4B1;
+}
+
+.hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 78px 0 54px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #0070BB;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 h1 {
-  margin-bottom: 24px;
-  color: #eee;
+  max-width: 700px;
+  margin: 0 0 14px;
+  color: #1A1A1A;
+  font-size: clamp(42px, 7vw, 76px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+}
+
+.hero-copy {
+  max-width: 480px;
+  margin: 0;
+  color: #63718a;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.team-signature {
+  display: grid;
+  gap: 2px;
+  min-width: 190px;
+  padding: 18px 20px;
+  border-left: 3px solid #2592B8;
+  background: #ffffff;
+  color: #63718a;
+  font-size: 15px;
+}
+
+.signature-label {
+  margin: 0 0 10px;
+  color: #0070BB;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-signature strong {
+  color: #14213d;
+  font-size: 21px;
+}
+
+.workspace {
+  padding: 30px;
+  border: 1px solid #d5e3f0;
+  background: #ffffff;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+}
+
+h2 {
+  margin: 0;
+  color: #14213d;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.health-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0d4778;
+  font-size: 14px;
   font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.product-form {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  min-width: 190px;
+  color: #63718a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d5e3f0;
+  border-radius: 0;
+  background: #f8fbff;
+  color: #14213d;
+  font: inherit;
+  font-size: 16px;
+}
+
+input:focus {
+  outline: 3px solid #dbeeff;
+  border-color: #1261a0;
+}
+
+.button,
+.table-action {
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.button {
+  min-height: 45px;
+  padding: 0 20px;
+}
+
+.button-primary {
+  background: #1261a0;
+  color: #ffffff;
+}
+
+.button-primary:hover {
+  background: #0d4778;
+}
+
+.button-quiet {
+  background: transparent;
+  color: #63718a;
+}
+
+.button-quiet:hover {
+  color: #14213d;
+}
+
+.table-wrap {
+  overflow-x: auto;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
 }
 
-th, td {
-  padding: 10px 16px;
+th,
+td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #d5e3f0;
   text-align: left;
-  border-bottom: 1px solid #222;
 }
 
 th {
-  color: #888;
-  font-weight: 500;
-  font-size: 12px;
+  color: #63718a;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-tr:hover {
-  background: #191919;
+tbody tr:hover {
+  background: #f4f9fe;
 }
 
-form {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  align-items: flex-end;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: #777;
-}
-
-input {
-  padding: 8px 10px;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background: #1a1a1a;
-  color: #ccc;
-  font-size: 14px;
-}
-
-input:focus {
-  outline: none;
-  border-color: #555;
-}
-
-button {
-  padding: 8px 16px;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background: #1a1a1a;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-button:hover {
-  background: #252525;
-  border-color: #444;
+.price {
+  color: #0d4778;
+  font-weight: 700;
 }
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-p {
-  color: #555;
+.table-action {
+  padding: 7px 10px;
+  background: #dbeeff;
+  color: #0d4778;
+}
+
+.table-action-danger {
+  background: #fff0ed;
+  color: #c64f43;
+}
+
+.empty-state {
+  display: grid;
+  gap: 4px;
+  padding: 34px 0 12px;
+  color: #63718a;
+}
+
+.empty-state strong {
+  color: #14213d;
+  font-size: 20px;
+}
+
+.stops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.stop-card {
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid #d5e3f0;
+  background: #f8fbff;
+}
+
+.stop-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+}
+
+.stop-id {
+  color: #63718a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stop-badge {
+  padding: 4px 8px;
+  background: #dbeeff;
+  color: #0d4778;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stop-card h3 {
+  margin: 0 0 8px;
+  color: #14213d;
+  font-size: 24px;
+}
+
+.stop-card p {
+  color: #63718a;
+  font-size: 15px;
+}
+
+.page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 48px;
+  color: #63718a;
   font-size: 14px;
+}
+
+@media (max-width: 680px) {
+  .app-shell {
+    padding: 20px 18px;
+  }
+
+  .hero {
+    display: grid;
+    padding: 58px 0 36px;
+  }
+
+  .workspace {
+    padding: 22px 18px;
+  }
+
+  .product-form {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .field {
+    min-width: 0;
+  }
+
+  .section-heading {
+    align-items: end;
+  }
+
+  .page-footer {
+    display: grid;
+    gap: 6px;
+  }
 }

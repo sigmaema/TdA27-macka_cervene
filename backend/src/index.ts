@@ -14,6 +14,20 @@ interface TeamMember extends RowDataPacket {
   name: string;
 }
 
+interface Stop extends RowDataPacket {
+  id: number;
+  name: string;
+  image_url: string | null;
+  is_transfer: boolean;
+  x: number | null;
+  y: number | null;
+  wheelchair_accessible: boolean;
+  has_shelter: boolean;
+  has_bench: boolean;
+  has_ticket_machine: boolean;
+  has_display: boolean;
+}
+
 // DATABASE_URL, e.g. mysql://tda_user:strongPassword%3F@127.0.0.1:3306/product
 const db = mysql.createPool(process.env.DATABASE_URL!);
 const schemaSql = await readFile(new URL("../docker/schema.sql", import.meta.url), "utf8");
@@ -55,6 +69,11 @@ app.get("/api/v1/team", async (_req, res) => {
     "SELECT name FROM team_member WHERE team_id = 1 ORDER BY id",
   );
   res.json({ name: team.name, members: members.map((member) => member.name) });
+});
+
+app.get("/api/v1/stops", async (_req, res) => {
+  const [stops] = await db.query<Stop[]>("SELECT * FROM stops ORDER BY name");
+  res.json(stops);
 });
 
 app.get("/api/product", async (_req, res) => {

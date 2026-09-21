@@ -1,10 +1,10 @@
 export default function ProductTable({ products, onEdit, onDelete }) {
   if (products.length === 0) {
-    return <p>No products.</p>;
+    return <div className="empty-state"><strong>No products yet</strong><span>Add the first item to your catalogue above.</span></div>;
   }
 
   return (
-    <table>
+    <div className="table-wrap"><table>
       <thead>
         <tr>
           <th>ID</th>
@@ -18,14 +18,14 @@ export default function ProductTable({ products, onEdit, onDelete }) {
           <tr key={p.id}>
             <td>{p.id}</td>
             <td>{p.name}</td>
-            <td>{p.cost}</td>
+            <td className="price">{p.cost} Kč</td>
             <td className="actions">
-              <button onClick={() => onEdit(p)}>Edit</button>
-              <button onClick={() => onDelete(p.id)}>Delete</button>
+              <button className="table-action" onClick={() => onEdit(p)}>Edit</button>
+              <button className="table-action table-action-danger" onClick={() => onDelete(p.id)}>Delete</button>
             </td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }

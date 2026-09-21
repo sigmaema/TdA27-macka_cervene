@@ -15,17 +15,17 @@ export default function ProductForm({ onSubmit, initial, onCancel }) {
   }
 
   return (
-    <form key={initial?.id || "new"} onSubmit={handleSubmit}>
-      <label>
+    <form className="product-form" key={initial?.id || "new"} onSubmit={handleSubmit}>
+      <label className="field">
         Name
         <input name="name" defaultValue={initial?.name || ""} required />
       </label>
-      <label>
+      <label className="field">
         Price
         <input name="cost" type="number" defaultValue={initial?.cost || ""} required />
       </label>
-      <button type="submit">{initial ? "Save" : "Add"}</button>
-      {onCancel && <button type="button" onClick={onCancel}>Zrušit</button>}
+      <button className="button button-primary" type="submit">{initial ? "Save changes" : "Add product"}</button>
+      {onCancel && <button className="button button-quiet" type="button" onClick={onCancel}>Cancel</button>}
     </form>
   );
 }

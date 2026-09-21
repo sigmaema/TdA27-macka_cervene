@@ -1,5 +1,5 @@
 const envApiUrl = import.meta.env.VITE_API_URL;
-const API_URL = (envApiUrl && envApiUrl.trim()) ? envApiUrl : (import.meta.env.DEV ? "http://localhost:8080/api" : "/api");
+const API_URL = (envApiUrl && envApiUrl.trim()) ? envApiUrl : "/api";
 
 export async function getHealth() {
   const res = await fetch(`${API_URL}/v1/health`);
@@ -10,6 +10,12 @@ export async function getHealth() {
 export async function getTeam() {
   const res = await fetch(`${API_URL}/v1/team`);
   if (!res.ok) throw new Error(`Team request failed with status ${res.status}`);
+  return res.json();
+}
+
+export async function getStops() {
+  const res = await fetch(`${API_URL}/v1/stops`);
+  if (!res.ok) throw new Error(`Stops request failed with status ${res.status}`);
   return res.json();
 }
 
