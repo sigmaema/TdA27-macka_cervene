@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { readFile } from "node:fs/promises";
 import mysql from "mysql2/promise";
+import type { NextFunction, Request, Response } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 interface Product extends RowDataPacket {
@@ -138,12 +139,21 @@ function parseProduct(body: unknown): { name: string; cost: number } | null {
 
 function parseStop(body: unknown): StopInput | null {
   const data = (body ?? {}) as Record<string, unknown>;
+  const allowedFields = new Set([
+    "name",
+    "image_url",
+    "wheelchair_accessible",
+    "has_shelter",
+    "has_ticket_machine",
+  ]);
+  if (Object.keys(data).some((field) => !allowedFields.has(field))) return null;
   if (
     typeof data.name !== "string" ||
-    data.name.length === 0 ||
+    data.name.trim().length === 0 ||
     data.name.length > 255 ||
     (data.image_url !== undefined && data.image_url !== null && typeof data.image_url !== "string") ||
     (typeof data.image_url === "string" && data.image_url.length > 255) ||
+    (typeof data.image_url === "string" && !isValidUrl(data.image_url)) ||
     typeof data.wheelchair_accessible !== "boolean" ||
     typeof data.has_shelter !== "boolean" ||
     typeof data.has_ticket_machine !== "boolean"
@@ -157,6 +167,25 @@ function parseStop(body: unknown): StopInput | null {
     has_shelter: data.has_shelter,
     has_ticket_machine: data.has_ticket_machine,
   };
+}
+
+function isValidUrl(value: string) {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseStopId(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id >= 1 ? id : null;
+}
+
+function invalidStopId(res: Parameters<Parameters<typeof app.get>[1]>[1]) {
+  return res.status(400).json({ error: "Invalid stop ID" });
 }
 
 function stopResponse(stop: Stop) {
@@ -195,12 +224,17 @@ app.get("/api/v1/stops", async (_req, res) => {
 });
 
 app.get("/api/v1/stops/:id", async (req, res) => {
+  const id = parseStopId(req.params.id);
+  if (id === null) {
+    invalidStopId(res);
+    return;
+  }
   const [[stop]] = await db.execute<Stop[]>(
     "SELECT id, name, image_url, wheelchair_accessible, has_shelter, has_ticket_machine FROM stops WHERE id = ?",
-    [Number(req.params.id)],
+    [id],
   );
   if (!stop) {
-    res.status(404).json({ message: "Zastávka neexistuje" });
+    res.status(404).json({ error: "Stop not found" });
     return;
   }
   res.status(200).json(stopResponse(stop));
@@ -209,7 +243,7 @@ app.get("/api/v1/stops/:id", async (req, res) => {
 app.post("/api/v1/stops", async (req, res) => {
   const data = parseStop(req.body);
   if (!data) {
-    res.status(400).json({ message: "Neplatná data zastávky" });
+    res.status(400).json({ error: "Invalid input data" });
     return;
   }
   const [result] = await db.execute<ResultSetHeader>(
@@ -227,13 +261,17 @@ app.post("/api/v1/stops", async (req, res) => {
 app.put("/api/v1/stops/:id", async (req, res) => {
   const data = parseStop(req.body);
   if (!data) {
-    res.status(400).json({ message: "Neplatná data zastávky" });
+    res.status(400).json({ error: "Invalid input data" });
     return;
   }
-  const id = Number(req.params.id);
+  const id = parseStopId(req.params.id);
+  if (id === null) {
+    invalidStopId(res);
+    return;
+  }
   const [[existingStop]] = await db.execute<Stop[]>("SELECT id FROM stops WHERE id = ?", [id]);
   if (!existingStop) {
-    res.status(404).json({ message: "Zastávka neexistuje" });
+    res.status(404).json({ error: "Stop not found" });
     return;
   }
   await db.execute(
@@ -250,9 +288,14 @@ app.put("/api/v1/stops/:id", async (req, res) => {
 });
 
 app.delete("/api/v1/stops/:id", async (req, res) => {
-  const [result] = await db.execute<ResultSetHeader>("DELETE FROM stops WHERE id = ?", [Number(req.params.id)]);
+  const id = parseStopId(req.params.id);
+  if (id === null) {
+    invalidStopId(res);
+    return;
+  }
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM stops WHERE id = ?", [id]);
   if (result.affectedRows === 0) {
-    res.status(404).json({ message: "Zastávka neexistuje" });
+    res.status(404).json({ error: "Stop not found" });
     return;
   }
   res.status(204).send();
@@ -298,6 +341,14 @@ app.put("/api/product/:id", async (req, res) => {
 app.delete("/api/product/:id", async (req, res) => {
   await db.execute("DELETE FROM product WHERE id = ?", [Number(req.params.id)]);
   res.json({ message: "Product was deleted permanently from DB." });
+});
+
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (error instanceof SyntaxError) {
+    res.status(400).json({ error: "Invalid JSON body" });
+    return;
+  }
+  next(error);
 });
 
 const port = Number(process.env.PORT ?? 8080);
