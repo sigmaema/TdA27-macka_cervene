@@ -1,0 +1,257 @@
+openapi: 3.0.3
+
+info:
+  title: TdA27 Lines API
+  version: 1.0.0
+  description: REST API for managing public transport lines.
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Lines
+    description: Operations related to public transport lines
+
+paths:
+  /lines:
+    get:
+      tags:
+        - Lines
+      summary: List lines
+      description: Returns all lines registered in the system.
+      operationId: getLines
+      responses:
+        "200":
+          description: List of lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Line"
+
+    post:
+      tags:
+        - Lines
+      summary: Create a line
+      description: Creates a new line.
+      operationId: createLine
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineInput"
+      responses:
+        "201":
+          description: Line created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Line"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /lines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/LineId"
+
+    get:
+      tags:
+        - Lines
+      summary: Get line detail
+      description: >
+        Returns the details of a specific line, including its trips and directions.
+      operationId: getLine
+      responses:
+        "200":
+          description: Line detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Lines
+      summary: Update a line
+      description: Replaces the data of an existing line.
+      operationId: updateLine
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineInput"
+      responses:
+        "200":
+          description: Line updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Line"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Lines
+      summary: Delete a line
+      description: Deletes an existing line.
+      operationId: deleteLine
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Line deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    LineId:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the line
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+  schemas:
+    Line:
+      type: object
+      required:
+        - id
+        - number
+        - name
+        - type
+        - color
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: string
+          maxLength: 20
+          example: "42"
+        name:
+          type: string
+          maxLength: 255
+          example: Campus Express
+        type:
+          type: string
+          maxLength: 50
+          example: bus
+        color:
+          type: string
+          example: "#4F46E5"
+
+    LineInput:
+      type: object
+      required:
+        - number
+        - name
+        - type
+        - color
+      properties:
+        number:
+          type: string
+          maxLength: 20
+          example: "42"
+        name:
+          type: string
+          maxLength: 255
+          example: Campus Express
+        type:
+          type: string
+          maxLength: 50
+          example: bus
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          example: "#4F46E5"
+
+    LineDetail:
+      allOf:
+        - $ref: "#/components/schemas/Line"
+        - type: object
+          required:
+            - trips
+          properties:
+            trips:
+              type: array
+              items:
+                $ref: "#/components/schemas/Trip"
+
+    Trip:
+      type: object
+      required:
+        - id
+        - direction
+      properties:
+        id:
+          type: integer
+          example: 12
+        direction:
+          type: string
+          maxLength: 255
+          example: Notebook Quay
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Line not found
+
+  responses:
+    BadRequest:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Invalid request data
+
+    Unauthorized:
+      description: Missing or invalid administrator API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Unauthorized
+
+    NotFound:
+      description: The requested line does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Line not found
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key

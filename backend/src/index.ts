@@ -23,6 +23,13 @@ interface TransitLine extends RowDataPacket {
   color: string;
 }
 
+interface LineInput {
+  number: string;
+  name: string;
+  type: string;
+  color: string;
+}
+
 interface LineDirection extends RowDataPacket {
   id: number;
   line_id: number;
@@ -160,14 +167,21 @@ async function seedLineTrips() {
 }
 
 async function seedLineRoutes() {
-  const lineKeys: Record<string, string> = { "128": "A", "136": "B", "676": "C" };
+  const routeStops: Record<string, number[]> = {
+    "128": [1, 2, 3, 4, 5],
+    "136": [6, 2, 7, 8, 9, 10, 11],
+    "676": [12, 13, 8, 14, 4, 15],
+  };
   const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines ORDER BY id");
   const [stops] = await db.query<Stop[]>("SELECT id, \`lines\` FROM stops ORDER BY id");
+  const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
   await db.query("DELETE FROM line_direction_stops");
   await db.query("DELETE FROM line_directions");
 
   for (const line of lines) {
-    const lineStops = stops.filter((stop) => stop.lines.split(";").includes(lineKeys[line.number]));
+    const lineStops = (routeStops[line.number] || [])
+      .map((stopId) => stopsById.get(stopId))
+      .filter((stop): stop is Stop => Boolean(stop));
     const directions = [
       { name: "Směr centrum", orderedStops: lineStops },
       { name: "Směr okraj města", orderedStops: [...lineStops].reverse() },
@@ -213,6 +227,31 @@ function parseProduct(body: unknown): { name: string; cost: number } | null {
   const { name, cost } = (body ?? {}) as Record<string, unknown>;
   if (typeof name !== "string" || !Number.isInteger(cost)) return null;
   return { name, cost: cost as number };
+}
+
+function parseLine(body: unknown): LineInput | null {
+  const data = (body ?? {}) as Record<string, unknown>;
+  const allowedFields = new Set(["number", "name", "type", "color"]);
+  if (Object.keys(data).some((field) => !allowedFields.has(field))) return null;
+  if (
+    typeof data.number !== "string" ||
+    data.number.trim().length === 0 ||
+    data.number.length > 20 ||
+    typeof data.name !== "string" ||
+    data.name.trim().length === 0 ||
+    data.name.length > 255 ||
+    typeof data.type !== "string" ||
+    data.type.trim().length === 0 ||
+    data.type.length > 50 ||
+    typeof data.color !== "string" ||
+    !/^#[0-9A-Fa-f]{6}$/.test(data.color)
+  ) return null;
+  return {
+    number: data.number,
+    name: data.name,
+    type: data.type,
+    color: data.color,
+  };
 }
 
 function parseStop(body: unknown): StopInput | null {
@@ -330,7 +369,11 @@ app.get("/api/v1/lines/:id", async (req, res) => {
     "SELECT id, line_id, name FROM line_directions WHERE line_id = ? ORDER BY id",
     [id],
   );
-  const directionResponses = [];
+  const directionResponses: Array<{
+    id: number;
+    name: string;
+    stops: Array<{ id: number; name: string; image_url: string | null; order: number }>;
+  }> = [];
   for (const direction of directions) {
     const [stops] = await db.execute<Stop[]>(
       `SELECT s.id, s.name, s.image_url, lds.stop_order
@@ -347,11 +390,69 @@ app.get("/api/v1/lines/:id", async (req, res) => {
         id: stop.id,
         name: stop.name,
         image_url: stop.image_url,
-        order: stop.stop_order,
+        order: stop.stop_order ?? 0,
       })),
     });
   }
-  res.status(200).json({ ...line, directions: directionResponses });
+  const [trips] = await db.execute<RowDataPacket[]>(
+    "SELECT id, direction FROM line_trips WHERE line_id = ? ORDER BY id",
+    [id],
+  );
+  res.status(200).json({
+    ...line,
+    trips: trips.map((trip, index) => ({
+      id: trip.id,
+      direction: trip.direction,
+      stops: directionResponses[index]?.stops || [],
+    })),
+    directions: directionResponses,
+  });
+});
+
+app.post("/api/v1/lines", requireAdminApiKey, async (req, res) => {
+  const data = parseLine(req.body);
+  if (!data) {
+    res.status(400).json({ error: "Invalid request data" });
+    return;
+  }
+  const [result] = await db.execute<ResultSetHeader>(
+    "INSERT INTO transit_lines (number, name, type, color) VALUES (?, ?, ?, ?)",
+    [data.number, data.name, data.type, data.color],
+  );
+  res.status(201).json({ id: result.insertId, ...data });
+});
+
+app.put("/api/v1/lines/:id", requireAdminApiKey, async (req, res) => {
+  const id = parseStopId(String(req.params.id));
+  const data = parseLine(req.body);
+  if (id === null || !data) {
+    res.status(400).json({ error: "Invalid request data" });
+    return;
+  }
+  const [[existingLine]] = await db.execute<TransitLine[]>("SELECT id FROM transit_lines WHERE id = ?", [id]);
+  if (!existingLine) {
+    res.status(404).json({ error: "Line not found" });
+    return;
+  }
+  await db.execute(
+    "UPDATE transit_lines SET number = ?, name = ?, type = ?, color = ? WHERE id = ?",
+    [data.number, data.name, data.type, data.color, id],
+  );
+  res.status(200).json({ id, ...data });
+});
+
+app.delete("/api/v1/lines/:id", requireAdminApiKey, async (req, res) => {
+  const id = parseStopId(String(req.params.id));
+  if (id === null) {
+    res.status(400).json({ error: "Invalid request data" });
+    return;
+  }
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM transit_lines WHERE id = ?", [id]);
+  if (result.affectedRows === 0) {
+    res.status(404).json({ error: "Line not found" });
+    return;
+  }
+  res.status(204).send();
 });
 
 app.get("/api/v1/stops", async (_req, res) => {
