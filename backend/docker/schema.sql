@@ -40,6 +40,13 @@ CREATE TABLE IF NOT EXISTS transit_lines (
   color VARCHAR(7) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS line_trips (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  line_id INT NOT NULL,
+  direction ENUM('outbound', 'inbound') NOT NULL,
+  FOREIGN KEY (line_id) REFERENCES transit_lines(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS line_directions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   line_id INT NOT NULL,

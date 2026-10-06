@@ -148,6 +148,17 @@ async function seedLines() {
   );
 }
 
+async function seedLineTrips() {
+  const [lines] = await db.query<TransitLine[]>("SELECT id FROM transit_lines ORDER BY id");
+  await db.query("DELETE FROM line_trips");
+  for (const line of lines) {
+    await db.execute(
+      "INSERT INTO line_trips (line_id, direction) VALUES (?, 'outbound'), (?, 'inbound')",
+      [line.id, line.id],
+    );
+  }
+}
+
 async function seedLineRoutes() {
   const lineKeys: Record<string, string> = { "128": "A", "136": "B", "676": "C" };
   const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines ORDER BY id");
@@ -186,6 +197,7 @@ for (let attempt = 1; ; attempt++) {
     await ensureStopColumns();
     await ensureLineColumns();
     await seedLines();
+    await seedLineTrips();
     await seedStops();
     await seedLineRoutes();
     break;
