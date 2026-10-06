@@ -378,6 +378,29 @@ app.get("/api/v1/stops/:id", async (req, res) => {
   res.status(200).json(stopResponse(stop));
 });
 
+app.get("/api/v1/stops/:id/lines", async (req, res) => {
+  const id = parseStopId(String(req.params.id));
+  if (id === null) {
+    res.status(400).json({ error: "Invalid stop ID" });
+    return;
+  }
+  const [[stop]] = await db.execute<Stop[]>("SELECT id FROM stops WHERE id = ?", [id]);
+  if (!stop) {
+    res.status(404).json({ error: "Stop not found" });
+    return;
+  }
+  const [lines] = await db.execute<TransitLine[]>(
+    `SELECT DISTINCT tl.id, tl.number, tl.name, tl.type, tl.color
+     FROM line_direction_stops lds
+     JOIN line_directions ld ON ld.id = lds.direction_id
+     JOIN transit_lines tl ON tl.id = ld.line_id
+     WHERE lds.stop_id = ?
+     ORDER BY tl.number`,
+    [id],
+  );
+  res.status(200).json(lines);
+});
+
 app.post("/api/v1/stops", requireAdminApiKey, async (req, res) => {
   const data = parseStop(req.body);
   if (!data) {

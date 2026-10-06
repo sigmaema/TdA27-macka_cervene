@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { getHealth, getTeam, getLine, getLines, getStop, getStops } from "./api";
+import { getHealth, getTeam, getLine, getLines, getStop, getStops, getStopLines } from "./api";
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [stops, setStops] = useState([]);
+  const [stopLines, setStopLines] = useState({});
   const [lines, setLines] = useState([]);
   const [selectedLine, setSelectedLine] = useState(null);
   const [selectedDirection, setSelectedDirection] = useState(0);
@@ -56,7 +57,13 @@ export default function App() {
         .catch((error) => console.error("Nepodařilo se načíst linky:", error));
     } else {
       getStops()
-        .then(setStops)
+        .then(async (data) => {
+          setStops(data);
+          const associations = await Promise.all(
+            data.map(async (stop) => [stop.id, await getStopLines(stop.id)]),
+          );
+          setStopLines(Object.fromEntries(associations));
+        })
         .catch((error) => console.error("Nepodařilo se načíst zastávky:", error));
     }
 
@@ -264,6 +271,21 @@ export default function App() {
                       <span className="stop-id">#{stop.id}</span>
                     </div>
                     <h3>{stop.name}</h3>
+                    <div className="stop-lines-list" aria-label={`Linky na zastávce ${stop.name}`}>
+                      {(stopLines[stop.id] || []).map((line) => (
+                        <button
+                          className="stop-line-chip"
+                          key={line.id}
+                          style={{ backgroundColor: line.color }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/lines/${line.id}`);
+                          }}
+                        >
+                          {line.number}
+                        </button>
+                      ))}
+                    </div>
                     <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
                     <span className="stop-open">Zobrazit detail →</span>
                   </article>

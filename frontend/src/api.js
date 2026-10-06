@@ -37,6 +37,12 @@ export async function getStop(id) {
   return res.json();
 }
 
+export async function getStopLines(id) {
+  const res = await fetch(`${API_URL}/v1/stops/${id}/lines`);
+  if (!res.ok) throw new Error(`Stop lines request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getProducts() {
   const res = await fetch(`${API_URL}/product`);
   return res.json();
