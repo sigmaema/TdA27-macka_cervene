@@ -81,11 +81,15 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <img className="brand-logo" src="/brand/logo.svg" alt="Think different Academy" />
-        <nav className="main-nav" aria-label="Hlavní navigace">
-          <button className={!isLines && !isDetail ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/stops")}>Zastávky</button>
-          <button className={isLines ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/lines")}>Linky</button>
-        </nav>
+        <div className="brand-nav">
+          <button className="brand-home" onClick={() => navigate("/")} aria-label="Domů">
+            <img className="brand-logo" src="/brand/logo.svg" alt="Think different Academy" />
+          </button>
+          <nav className="main-nav" aria-label="Hlavní navigace">
+            <button className={!isLines && !isDetail ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/stops")}>Zastávky</button>
+            <button className={isLines ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/lines")}>Linky</button>
+          </nav>
+        </div>
         <div className="status-pill">
           <span className={`status-dot ${healthStatus === "ok" ? "is-online" : ""}`} />
           {healthStatus === "ok" ? "Systém online" : "Připojování"}
@@ -135,7 +139,7 @@ export default function App() {
                   <article className="line-card" key={line.id}>
                     <div className="line-card-content">
                       <div className="line-title-row">
-                        <span className="line-code">{line.code}</span>
+                        <span className="line-code">{line.number}</span>
                         <span className="line-separator">·</span>
                         <h3 style={{ color: line.color }}>{line.name}</h3>
                       </div>

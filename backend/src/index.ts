@@ -17,7 +17,7 @@ interface TeamMember extends RowDataPacket {
 
 interface TransitLine extends RowDataPacket {
   id: number;
-  code: string;
+  number: string;
   name: string;
   type: string;
   color: string;
@@ -121,6 +121,26 @@ async function ensureStopColumns() {
   }
 }
 
+async function ensureLineColumns() {
+  const [columns] = await db.query<RowDataPacket[]>("SHOW COLUMNS FROM transit_lines");
+  const names = new Set(columns.map((column) => column.Field));
+  if (!names.has("number") && names.has("code")) {
+    await db.query("ALTER TABLE transit_lines CHANGE COLUMN code number VARCHAR(20) NOT NULL");
+  }
+}
+
+async function seedLines() {
+  await db.query("DELETE FROM transit_lines");
+  await db.query(
+    `INSERT INTO transit_lines (number, name, type, color) VALUES
+      ('128', 'Modrá linka', 'Městská', '#0070BB'),
+      ('136', 'Zelená linka', 'Příměstská', '#6DD4B1'),
+      ('676', 'Oranžová linka', 'Městská', '#F29F05')
+     ON DUPLICATE KEY UPDATE
+       name = VALUES(name), type = VALUES(type), color = VALUES(color)`,
+  );
+}
+
 // The database may still be starting up (no startup order on Tour de Cloud), so retry.
 for (let attempt = 1; ; attempt++) {
   try {
@@ -129,6 +149,8 @@ for (let attempt = 1; ; attempt++) {
       if (sql) await db.query(sql);
     }
     await ensureStopColumns();
+    await ensureLineColumns();
+    await seedLines();
     await seedStops();
     break;
   } catch (error) {
@@ -237,7 +259,7 @@ app.get("/api/v1/team", async (_req, res) => {
 
 app.get("/api/v1/lines", async (_req, res) => {
   const [lines] = await db.query<TransitLine[]>(
-    "SELECT id, code, name, type, color FROM transit_lines ORDER BY code",
+    "SELECT id, number, name, type, color FROM transit_lines ORDER BY number",
   );
   res.status(200).json(lines);
 });

@@ -34,30 +34,50 @@ body {
   min-height: 54px;
 }
 
+.brand-nav {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.brand-home {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .brand-logo {
-
-  .main-nav {
-    display: flex;
-    gap: 6px;
-  }
-
-  .nav-button {
-    padding: 9px 14px;
-    border: 0;
-    background: transparent;
-    color: #63718a;
-    cursor: pointer;
-    font: inherit;
-    font-weight: 700;
-  }
-
-  .nav-button:hover,
-  .nav-button.is-active {
-    background: #dbeeff;
-    color: #0070BB;
-  }
-  width: 210px;
+  width: 112px;
   height: auto;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-button {
+  padding: 12px 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #63718a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.nav-button:hover,
+.nav-button.is-active {
+  color: #0070BB;
+}
+
+.nav-button.is-active {
+  border-bottom-color: #0070BB;
 }
 
 .status-pill {
@@ -585,9 +605,14 @@ tbody tr:hover {
     gap: 12px;
   }
 
-  .main-nav {
-    order: 3;
+  .brand-nav {
     width: 100%;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .main-nav {
+    gap: 16px;
   }
 
   .search-controls {
