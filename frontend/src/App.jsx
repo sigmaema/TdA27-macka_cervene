@@ -1,16 +1,20 @@
-import { useState, useEffect } from "react";
-import { getHealth, getTeam, getStop, getStops } from "./api";
+import { useEffect, useState } from "react";
+import { getHealth, getTeam, getLines, getStop, getStops } from "./api";
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [stops, setStops] = useState([]);
+  const [lines, setLines] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStop, setSelectedStop] = useState(null);
   const [stopError, setStopError] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
   const [team, setTeam] = useState(null);
+
   const stopId = path.match(/^\/stops\/(\d+)\/?$/)?.[1];
+  const isLines = path === "/lines" || path === "/lines/";
+  const isDetail = Boolean(stopId);
 
   function navigate(nextPath, restoreScroll = false) {
     window.history.pushState({}, "", nextPath);
@@ -26,15 +30,6 @@ export default function App() {
     navigate(`/stops/${id}`);
   }
 
-  async function loadStops() {
-    try {
-      const data = await getStops();
-      setStops(data);
-    } catch (e) {
-      console.error("Nepodařilo se načíst zastávky:", e);
-    }
-  }
-
   useEffect(() => {
     if (stopId) {
       setSelectedStop(null);
@@ -45,18 +40,24 @@ export default function App() {
           console.error("Nepodařilo se načíst detail zastávky:", error);
           setStopError("Zastávku se nepodařilo načíst. Zkontrolujte připojení nebo její ID.");
         });
+    } else if (isLines) {
+      getLines()
+        .then(setLines)
+        .catch((error) => console.error("Nepodařilo se načíst linky:", error));
     } else {
-      loadStops();
+      getStops()
+        .then(setStops)
+        .catch((error) => console.error("Nepodařilo se načíst zastávky:", error));
     }
+
     getHealth()
       .then((data) => setHealthStatus(data.status))
-      .catch((error) => console.error("Failed to load health status:", error));
+      .catch((error) => console.error("Nepodařilo se načíst stav API:", error));
     getTeam()
       .then(setTeam)
-      .catch((error) => console.error("Failed to load team:", error));
-  }, [stopId]);
+      .catch((error) => console.error("Nepodařilo se načíst tým:", error));
+  }, [stopId, isLines]);
 
-  const isDetail = Boolean(stopId);
   function normalizeSearchText(value) {
     return value
       .normalize("NFD")
@@ -81,6 +82,10 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <img className="brand-logo" src="/brand/logo.svg" alt="Think different Academy" />
+        <nav className="main-nav" aria-label="Hlavní navigace">
+          <button className={!isLines && !isDetail ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/stops")}>Zastávky</button>
+          <button className={isLines ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/lines")}>Linky</button>
+        </nav>
         <div className="status-pill">
           <span className={`status-dot ${healthStatus === "ok" ? "is-online" : ""}`} />
           {healthStatus === "ok" ? "Systém online" : "Připojování"}
@@ -91,8 +96,14 @@ export default function App() {
         <section className="hero">
           <div>
             <p className="eyebrow">Mapa města</p>
-            <h1>{isDetail ? "Detail zastávky" : "Zastávky"}</h1>
-            <p className="hero-copy">{isDetail ? "Vybavení, přístupnost a poloha vybrané zastávky." : "Přehled všech zastávek, jejich vybavení a přístupnosti na jednom místě."}</p>
+            <h1>{isDetail ? "Detail zastávky" : isLines ? "Linky" : "Zastávky"}</h1>
+            <p className="hero-copy">
+              {isDetail
+                ? "Vybavení, přístupnost a poloha vybrané zastávky."
+                : isLines
+                  ? "Přehled linek dopravního systému a jejich základního značení."
+                  : "Přehled všech zastávek, jejich vybavení a přístupnosti na jednom místě."}
+            </p>
           </div>
           {team && (
             <aside className="team-signature">
@@ -103,35 +114,39 @@ export default function App() {
           )}
         </section>
 
-        <section className="workspace" aria-label="Správa zastávek">
+        <section className="workspace" aria-label={isLines ? "Přehled linek" : "Správa zastávek"}>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Databáze</p>
-              <h2>{isDetail ? selectedStop?.name || "Načítání" : "Seznam zastávek"}</h2>
+              <h2>{isDetail ? selectedStop?.name || "Načítání" : isLines ? "Všechny linky" : "Seznam zastávek"}</h2>
             </div>
             {healthStatus === "ok" && <span className="health-label">Stav API: OK</span>}
           </div>
-          {!isDetail && (
-            <div className="search-controls">
-              <label className="search-field">
-                <span>Hledat zastávku nebo vlastnost</span>
-                <input
-                  type="search"
-                  value={searchInput}
-                  onChange={(event) => {
-                    setSearchInput(event.target.value);
-                    setSearchQuery(event.target.value);
-                  }}
-                  placeholder="Např. přístřešek nebo Turing"
-                />
-              </label>
-              <button className="search-button" onClick={() => setSearchQuery(searchInput)}>Vyhledat</button>
-              {(searchInput || searchQuery) && (
-                <button className="clear-search" onClick={() => { setSearchInput(""); setSearchQuery(""); }}>Vymazat</button>
-              )}
-            </div>
-          )}
-          {isDetail && stopError ? (
+
+          {isLines ? (
+            lines.length === 0 ? (
+              <div className="empty-state">
+                <strong>Zatím tu nejsou žádné linky</strong>
+                <span>Seznam linek je momentálně prázdný.</span>
+              </div>
+            ) : (
+              <div className="lines-grid">
+                {lines.map((line) => (
+                  <article className="line-card" key={line.id}>
+                    <div className="line-card-content">
+                      <div className="line-title-row">
+                        <span className="line-code">{line.code}</span>
+                        <span className="line-separator">·</span>
+                        <h3 style={{ color: line.color }}>{line.name}</h3>
+                      </div>
+                      <span className="line-type">{line.type}</span>
+                    </div>
+                    <span className="line-color" style={{ backgroundColor: line.color }} aria-label={`Barva linky ${line.color}`} />
+                  </article>
+                ))}
+              </div>
+            )
+          ) : isDetail && stopError ? (
             <div className="empty-state error-state">
               <strong>{stopError}</strong>
               <button className="back-button" onClick={() => navigate("/stops", true)}>Zpět na seznam zastávek</button>
@@ -158,35 +173,50 @@ export default function App() {
                 </dl>
               </div>
             </article>
-          ) : !isDetail && stops.length === 0 ? (
+          ) : stops.length === 0 ? (
             <div className="empty-state">
               <strong>Zatím tu nejsou žádné zastávky</strong>
               <span>Seznam zastávek je momentálně prázdný.</span>
             </div>
-          ) : !isDetail && filteredStops.length === 0 ? (
+          ) : filteredStops.length === 0 ? (
             <div className="empty-state">
               <strong>Žádná zastávka neodpovídá hledání</strong>
               <span>Zkuste jiný název nebo vlastnost, případně vyhledávání vymažte.</span>
             </div>
-          ) : !isDetail ? (
-            <div className="stops-grid">
-              {filteredStops.map((stop) => (
-                <article className="stop-card" key={stop.id} onClick={() => openStop(stop.id)}>
-                  <img className="stop-image" src={stop.image_url} alt={`Zastávka ${stop.name}`} />
-                  <div className="stop-card-heading">
-                    <span className="stop-id">#{stop.id}</span>
-                  </div>
-                  <h3>{stop.name}</h3>
-                  <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
-                  <span className="stop-open">Zobrazit detail →</span>
-                </article>
-              ))}
-            </div>
           ) : (
-            <div className="empty-state">
-              <strong>Zastávku se nepodařilo najít</strong>
-              <button className="back-button" onClick={() => navigate("/stops", true)}>Zpět na seznam zastávek</button>
-            </div>
+            <>
+              <div className="search-controls">
+                <label className="search-field">
+                  <span>Hledat zastávku nebo vlastnost</span>
+                  <input
+                    type="search"
+                    value={searchInput}
+                    onChange={(event) => {
+                      setSearchInput(event.target.value);
+                      setSearchQuery(event.target.value);
+                    }}
+                    placeholder="Např. přístřešek nebo Turing"
+                  />
+                </label>
+                <button className="search-button" onClick={() => setSearchQuery(searchInput)}>Vyhledat</button>
+                {(searchInput || searchQuery) && (
+                  <button className="clear-search" onClick={() => { setSearchInput(""); setSearchQuery(""); }}>Vymazat</button>
+                )}
+              </div>
+              <div className="stops-grid">
+                {filteredStops.map((stop) => (
+                  <article className="stop-card" key={stop.id} onClick={() => openStop(stop.id)}>
+                    <img className="stop-image" src={stop.image_url} alt={`Zastávka ${stop.name}`} />
+                    <div className="stop-card-heading">
+                      <span className="stop-id">#{stop.id}</span>
+                    </div>
+                    <h3>{stop.name}</h3>
+                    <p>{stop.wheelchair_accessible ? "Bezbariérový přístup" : "Přístupnost neuvedena"}</p>
+                    <span className="stop-open">Zobrazit detail →</span>
+                  </article>
+                ))}
+              </div>
+            </>
           )}
         </section>
       </main>

@@ -13,6 +13,12 @@ export async function getTeam() {
   return res.json();
 }
 
+export async function getLines() {
+  const res = await fetch(`${API_URL}/v1/lines`);
+  if (!res.ok) throw new Error(`Lines request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getStops() {
   const res = await fetch(`${API_URL}/v1/stops`);
   if (!res.ok) throw new Error(`Stops request failed with status ${res.status}`);

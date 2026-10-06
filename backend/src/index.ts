@@ -15,6 +15,14 @@ interface TeamMember extends RowDataPacket {
   name: string;
 }
 
+interface TransitLine extends RowDataPacket {
+  id: number;
+  code: string;
+  name: string;
+  type: string;
+  color: string;
+}
+
 interface Stop extends RowDataPacket {
   id: number;
   name: string;
@@ -225,6 +233,13 @@ app.get("/api/v1/team", async (_req, res) => {
     "SELECT name FROM team_member WHERE team_id = 1 ORDER BY id",
   );
   res.json({ name: team.name, members: members.map((member) => member.name) });
+});
+
+app.get("/api/v1/lines", async (_req, res) => {
+  const [lines] = await db.query<TransitLine[]>(
+    "SELECT id, code, name, type, color FROM transit_lines ORDER BY code",
+  );
+  res.status(200).json(lines);
 });
 
 app.get("/api/v1/stops", async (_req, res) => {

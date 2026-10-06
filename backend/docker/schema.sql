@@ -32,6 +32,23 @@ CREATE TABLE IF NOT EXISTS stops (
   has_display BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+CREATE TABLE IF NOT EXISTS transit_lines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(20) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  color VARCHAR(7) NOT NULL
+);
+
+INSERT INTO transit_lines (code, name, type, color) VALUES
+  ('128', 'Modrá linka', 'Městská', '#0070BB'),
+  ('136', 'Zelená linka', 'Příměstská', '#6DD4B1'),
+  ('676', 'Oranžová linka', 'Městská', '#F29F05')
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  type = VALUES(type),
+  color = VALUES(color);
+
 INSERT INTO team (id, name) VALUES (1, 'Macka Cervene')
   ON DUPLICATE KEY UPDATE name = VALUES(name);
 
