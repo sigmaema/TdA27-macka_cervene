@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { getHealth, getTeam, getLines, getStop, getStops } from "./api";
+import { getHealth, getTeam, getLine, getLines, getStop, getStops } from "./api";
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [stops, setStops] = useState([]);
   const [lines, setLines] = useState([]);
+  const [selectedLine, setSelectedLine] = useState(null);
+  const [selectedDirection, setSelectedDirection] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStop, setSelectedStop] = useState(null);
@@ -13,8 +15,10 @@ export default function App() {
   const [team, setTeam] = useState(null);
 
   const stopId = path.match(/^\/stops\/(\d+)\/?$/)?.[1];
+  const lineId = path.match(/^\/lines\/(\d+)\/?$/)?.[1];
   const isLines = path === "/lines" || path === "/lines/";
   const isDetail = Boolean(stopId);
+  const isLineDetail = Boolean(lineId);
 
   function navigate(nextPath, restoreScroll = false) {
     window.history.pushState({}, "", nextPath);
@@ -40,6 +44,12 @@ export default function App() {
           console.error("Nepodařilo se načíst detail zastávky:", error);
           setStopError("Zastávku se nepodařilo načíst. Zkontrolujte připojení nebo její ID.");
         });
+    } else if (lineId) {
+      setSelectedLine(null);
+      setSelectedDirection(0);
+      getLine(lineId)
+        .then(setSelectedLine)
+        .catch((error) => console.error("Nepodařilo se načíst detail linky:", error));
     } else if (isLines) {
       getLines()
         .then(setLines)
@@ -56,7 +66,7 @@ export default function App() {
     getTeam()
       .then(setTeam)
       .catch((error) => console.error("Nepodařilo se načíst tým:", error));
-  }, [stopId, isLines]);
+  }, [stopId, lineId, isLines]);
 
   function normalizeSearchText(value) {
     return value
@@ -87,7 +97,7 @@ export default function App() {
           </button>
           <nav className="main-nav" aria-label="Hlavní navigace">
             <button className={!isLines && !isDetail ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/stops")}>Zastávky</button>
-            <button className={isLines ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/lines")}>Linky</button>
+            <button className={isLines || isLineDetail ? "nav-button is-active" : "nav-button"} onClick={() => navigate("/lines")}>Linky</button>
           </nav>
         </div>
         <div className="status-pill">
@@ -100,11 +110,13 @@ export default function App() {
         <section className="hero">
           <div>
             <p className="eyebrow">Mapa města</p>
-            <h1>{isDetail ? "Detail zastávky" : isLines ? "Linky" : "Zastávky"}</h1>
+            <h1>{isDetail ? "Detail zastávky" : isLineDetail ? "Detail linky" : isLines ? "Linky" : "Zastávky"}</h1>
             <p className="hero-copy">
               {isDetail
                 ? "Vybavení, přístupnost a poloha vybrané zastávky."
-                : isLines
+                : isLineDetail
+                  ? "Směry a pořadí zastávek na trase."
+                  : isLines
                   ? "Přehled linek dopravního systému a jejich základního značení."
                   : "Přehled všech zastávek, jejich vybavení a přístupnosti na jednom místě."}
             </p>
@@ -118,16 +130,53 @@ export default function App() {
           )}
         </section>
 
-        <section className="workspace" aria-label={isLines ? "Přehled linek" : "Správa zastávek"}>
+        <section className="workspace" aria-label={isLines || isLineDetail ? "Přehled linek" : "Správa zastávek"}>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Databáze</p>
-              <h2>{isDetail ? selectedStop?.name || "Načítání" : isLines ? "Všechny linky" : "Seznam zastávek"}</h2>
+              <h2>{isDetail ? selectedStop?.name || "Načítání" : isLineDetail ? selectedLine?.name || "Načítání" : isLines ? "Všechny linky" : "Seznam zastávek"}</h2>
             </div>
             {healthStatus === "ok" && <span className="health-label">Stav API: OK</span>}
           </div>
 
-          {isLines ? (
+          {isLineDetail ? (
+            selectedLine ? (
+              <article className="line-detail">
+                <div className="line-detail-heading">
+                  <button className="back-button" onClick={() => navigate("/lines")}>← Zpět na linky</button>
+                  <div className="line-detail-title">
+                    <span className="line-code">{selectedLine.number}</span>
+                    <span className="line-separator">·</span>
+                    <h3 style={{ color: selectedLine.color }}>{selectedLine.name}</h3>
+                  </div>
+                  <span className="line-type">{selectedLine.type}</span>
+                </div>
+                <div className="direction-tabs" role="tablist" aria-label="Směr linky">
+                  {selectedLine.directions.map((direction, index) => (
+                    <button
+                      key={direction.id}
+                      className={selectedDirection === index ? "direction-tab is-active" : "direction-tab"}
+                      onClick={() => setSelectedDirection(index)}
+                    >
+                      {direction.name}
+                    </button>
+                  ))}
+                </div>
+                <ol className="route-stops">
+                  {(selectedLine.directions[selectedDirection]?.stops || []).map((stop) => (
+                    <li key={stop.id}>
+                      <button className="route-stop" onClick={() => openStop(stop.id)}>
+                        <span className="route-stop-order">{stop.order}</span>
+                        <span>{stop.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ) : (
+              <div className="empty-state"><strong>Načítání detailu linky…</strong></div>
+            )
+          ) : isLines ? (
             lines.length === 0 ? (
               <div className="empty-state">
                 <strong>Zatím tu nejsou žádné linky</strong>
@@ -136,7 +185,7 @@ export default function App() {
             ) : (
               <div className="lines-grid">
                 {lines.map((line) => (
-                  <article className="line-card" key={line.id}>
+                    <article className="line-card" key={line.id} onClick={() => navigate(`/lines/${line.id}`)}>
                     <div className="line-card-content">
                       <div className="line-title-row">
                         <span className="line-code">{line.number}</span>

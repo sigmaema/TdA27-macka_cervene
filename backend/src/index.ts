@@ -23,8 +23,15 @@ interface TransitLine extends RowDataPacket {
   color: string;
 }
 
+interface LineDirection extends RowDataPacket {
+  id: number;
+  line_id: number;
+  name: string;
+}
+
 interface Stop extends RowDataPacket {
   id: number;
+  stop_order?: number;
   name: string;
   lines: string;
   transfer_lines: string;
@@ -141,6 +148,34 @@ async function seedLines() {
   );
 }
 
+async function seedLineRoutes() {
+  const lineKeys: Record<string, string> = { "128": "A", "136": "B", "676": "C" };
+  const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines ORDER BY id");
+  const [stops] = await db.query<Stop[]>("SELECT id, \`lines\` FROM stops ORDER BY id");
+  await db.query("DELETE FROM line_direction_stops");
+  await db.query("DELETE FROM line_directions");
+
+  for (const line of lines) {
+    const lineStops = stops.filter((stop) => stop.lines.split(";").includes(lineKeys[line.number]));
+    const directions = [
+      { name: "Směr centrum", orderedStops: lineStops },
+      { name: "Směr okraj města", orderedStops: [...lineStops].reverse() },
+    ];
+    for (const direction of directions) {
+      const [result] = await db.execute<ResultSetHeader>(
+        "INSERT INTO line_directions (line_id, name) VALUES (?, ?)",
+        [line.id, direction.name],
+      );
+      for (const [index, stop] of direction.orderedStops.entries()) {
+        await db.execute(
+          "INSERT INTO line_direction_stops (direction_id, stop_id, stop_order) VALUES (?, ?, ?)",
+          [result.insertId, stop.id, index + 1],
+        );
+      }
+    }
+  }
+}
+
 // The database may still be starting up (no startup order on Tour de Cloud), so retry.
 for (let attempt = 1; ; attempt++) {
   try {
@@ -152,6 +187,7 @@ for (let attempt = 1; ; attempt++) {
     await ensureLineColumns();
     await seedLines();
     await seedStops();
+    await seedLineRoutes();
     break;
   } catch (error) {
     if (attempt === 60) throw error;
@@ -262,6 +298,48 @@ app.get("/api/v1/lines", async (_req, res) => {
     "SELECT id, number, name, type, color FROM transit_lines ORDER BY number",
   );
   res.status(200).json(lines);
+});
+
+app.get("/api/v1/lines/:id", async (req, res) => {
+  const id = parseStopId(String(req.params.id));
+  if (id === null) {
+    res.status(400).json({ error: "Invalid line ID" });
+    return;
+  }
+  const [[line]] = await db.execute<TransitLine[]>(
+    "SELECT id, number, name, type, color FROM transit_lines WHERE id = ?",
+    [id],
+  );
+  if (!line) {
+    res.status(404).json({ error: "Line not found" });
+    return;
+  }
+  const [directions] = await db.execute<LineDirection[]>(
+    "SELECT id, line_id, name FROM line_directions WHERE line_id = ? ORDER BY id",
+    [id],
+  );
+  const directionResponses = [];
+  for (const direction of directions) {
+    const [stops] = await db.execute<Stop[]>(
+      `SELECT s.id, s.name, s.image_url, lds.stop_order
+       FROM line_direction_stops lds
+       JOIN stops s ON s.id = lds.stop_id
+       WHERE lds.direction_id = ?
+       ORDER BY lds.stop_order`,
+      [direction.id],
+    );
+    directionResponses.push({
+      id: direction.id,
+      name: direction.name,
+      stops: stops.map((stop) => ({
+        id: stop.id,
+        name: stop.name,
+        image_url: stop.image_url,
+        order: stop.stop_order,
+      })),
+    });
+  }
+  res.status(200).json({ ...line, directions: directionResponses });
 });
 
 app.get("/api/v1/stops", async (_req, res) => {

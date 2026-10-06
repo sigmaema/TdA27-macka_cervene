@@ -19,6 +19,12 @@ export async function getLines() {
   return res.json();
 }
 
+export async function getLine(id) {
+  const res = await fetch(`${API_URL}/v1/lines/${id}`);
+  if (!res.ok) throw new Error(`Line request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getStops() {
   const res = await fetch(`${API_URL}/v1/stops`);
   if (!res.ok) throw new Error(`Stops request failed with status ${res.status}`);

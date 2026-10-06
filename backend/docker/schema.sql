@@ -40,6 +40,23 @@ CREATE TABLE IF NOT EXISTS transit_lines (
   color VARCHAR(7) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS line_directions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  line_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  FOREIGN KEY (line_id) REFERENCES transit_lines(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS line_direction_stops (
+  direction_id INT NOT NULL,
+  stop_id INT NOT NULL,
+  stop_order INT NOT NULL,
+  PRIMARY KEY (direction_id, stop_id),
+  UNIQUE KEY unique_direction_order (direction_id, stop_order),
+  FOREIGN KEY (direction_id) REFERENCES line_directions(id) ON DELETE CASCADE,
+  FOREIGN KEY (stop_id) REFERENCES stops(id) ON DELETE CASCADE
+);
+
 INSERT INTO team (id, name) VALUES (1, 'Macka Cervene')
   ON DUPLICATE KEY UPDATE name = VALUES(name);
 
