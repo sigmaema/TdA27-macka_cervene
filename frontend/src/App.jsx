@@ -3,6 +3,7 @@ import { getHealth, getTeam, getLine, getLines, getStop, getStops, getStopLines 
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
+  const [query, setQuery] = useState(window.location.search);
   const [stops, setStops] = useState([]);
   const [stopLines, setStopLines] = useState({});
   const [lines, setLines] = useState([]);
@@ -20,19 +21,21 @@ export default function App() {
   const isLines = path === "/lines" || path === "/lines/";
   const isDetail = Boolean(stopId);
   const isLineDetail = Boolean(lineId);
+  const fromLineId = new URLSearchParams(query).get("fromLine");
 
-  function navigate(nextPath, restoreScroll = false) {
-    window.history.pushState({}, "", nextPath);
+  function navigate(nextPath, restoreScroll = false, nextQuery = "") {
+    window.history.pushState({}, "", `${nextPath}${nextQuery}`);
     setPath(nextPath);
+    setQuery(nextQuery);
     if (restoreScroll) {
       const savedScroll = Number(sessionStorage.getItem("stops-scroll-y") || 0);
       requestAnimationFrame(() => window.scrollTo(0, savedScroll));
     }
   }
 
-  function openStop(id) {
+  function openStop(id, sourceLineId = null) {
     sessionStorage.setItem("stops-scroll-y", String(window.scrollY));
-    navigate(`/stops/${id}`);
+    navigate(`/stops/${id}`, false, sourceLineId ? `?fromLine=${sourceLineId}` : "");
   }
 
   useEffect(() => {
@@ -40,7 +43,11 @@ export default function App() {
       setSelectedStop(null);
       setStopError(null);
       getStop(stopId)
-        .then(setSelectedStop)
+        .then(async (stop) => {
+          setSelectedStop(stop);
+          const servingLines = await getStopLines(stop.id);
+          setStopLines((current) => ({ ...current, [stop.id]: servingLines }));
+        })
         .catch((error) => {
           console.error("Nepodařilo se načíst detail zastávky:", error);
           setStopError("Zastávku se nepodařilo načíst. Zkontrolujte připojení nebo její ID.");
@@ -73,7 +80,7 @@ export default function App() {
     getTeam()
       .then(setTeam)
       .catch((error) => console.error("Nepodařilo se načíst tým:", error));
-  }, [stopId, lineId, isLines]);
+  }, [stopId, lineId, isLines, query]);
 
   function normalizeSearchText(value) {
     return value
@@ -172,7 +179,7 @@ export default function App() {
                 <ol className="route-stops">
                   {(selectedLine.directions[selectedDirection]?.stops || []).map((stop) => (
                     <li key={stop.id}>
-                      <button className="route-stop" onClick={() => openStop(stop.id)}>
+                      <button className="route-stop" onClick={() => openStop(stop.id, selectedLine.id)}>
                         <span className="route-stop-order">{stop.order}</span>
                         <span>{stop.name}</span>
                       </button>
@@ -223,7 +230,9 @@ export default function App() {
                 <div className="stop-detail-image image-placeholder">Obrázek není k dispozici</div>
               )}
               <div className="stop-detail-content">
-                <button className="back-button" onClick={() => navigate("/stops", true)}>← Zpět na seznam</button>
+                <button className="back-button" onClick={() => fromLineId ? navigate(`/lines/${fromLineId}`) : navigate("/stops", true)}>
+                  {fromLineId ? "← Zpět na detail linky" : "← Zpět na seznam"}
+                </button>
                 <p className="eyebrow">Zastávka #{selectedStop.id}</p>
                 <h3>{selectedStop.name}</h3>
                 <dl className="stop-facts">
@@ -231,6 +240,21 @@ export default function App() {
                   <div><dt>Přístřešek</dt><dd>{selectedStop.has_shelter ? "Ano" : "Ne"}</dd></div>
                   <div><dt>Automat na jízdenky</dt><dd>{selectedStop.has_ticket_machine ? "Ano" : "Ne"}</dd></div>
                 </dl>
+                <div className="serving-lines">
+                  <p className="eyebrow">Obsluhující linky</p>
+                  <div className="stop-lines-list">
+                    {(stopLines[selectedStop.id] || []).map((line) => (
+                      <button
+                        className="stop-line-chip"
+                        key={line.id}
+                        style={{ backgroundColor: line.color }}
+                        onClick={() => navigate(`/lines/${line.id}`)}
+                      >
+                        {line.number}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </article>
           ) : stops.length === 0 ? (

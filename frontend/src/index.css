@@ -581,6 +581,10 @@ tbody tr:hover {
   margin: 12px 0 4px;
 }
 
+.serving-lines {
+  margin-top: 28px;
+}
+
 .stop-line-chip {
   min-width: 34px;
   padding: 4px 8px;
