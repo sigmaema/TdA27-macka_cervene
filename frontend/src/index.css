@@ -50,8 +50,9 @@ body {
 }
 
 .brand-logo {
-  width: 112px;
+  width: 140px;
   height: auto;
+  transform: translateY(4px);
 }
 
 .main-nav {
@@ -704,6 +705,51 @@ tbody tr:hover {
   font-size: 14px;
 }
 
+@media (min-width: 1200px) {
+  .app-shell {
+    max-width: 1440px;
+    padding: 32px 56px 30px;
+  }
+
+  .hero {
+    padding: 68px 0 48px;
+  }
+
+  h1 {
+    font-size: 76px;
+  }
+
+  .hero-copy {
+    max-width: 560px;
+  }
+
+  .workspace {
+    padding: 42px;
+  }
+
+  .stops-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .lines-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .stop-card {
+    padding: 20px;
+  }
+
+  .stop-image {
+    height: 170px;
+  }
+
+  .line-detail {
+    max-width: 980px;
+  }
+}
+
 @media (max-width: 680px) {
   .app-shell {
     padding: 20px 18px;
@@ -770,5 +816,120 @@ tbody tr:hover {
 
   .line-detail-title {
     white-space: normal;
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-shell {
+    max-width: 1680px;
+    padding: 36px 56px 32px;
+  }
+
+  .topbar {
+    min-height: 64px;
+  }
+
+  .brand-nav {
+    gap: 48px;
+  }
+
+  .brand-logo {
+    width: 168px;
+  }
+
+  .main-nav {
+    gap: 34px;
+  }
+
+  .nav-button {
+    padding: 15px 0 10px;
+    font-size: 18px;
+  }
+
+  .status-pill {
+    font-size: 17px;
+  }
+
+  .status-dot {
+    width: 11px;
+    height: 11px;
+  }
+
+  .hero {
+    padding: 112px 0 72px;
+  }
+
+  h1 {
+    max-width: 900px;
+    font-size: 92px;
+  }
+
+  .hero-copy {
+    max-width: 620px;
+    font-size: 24px;
+  }
+
+  .team-signature {
+    min-width: 250px;
+    padding: 24px 26px;
+    font-size: 17px;
+  }
+
+  .team-signature strong {
+    font-size: 25px;
+  }
+
+  .workspace {
+    padding: 44px;
+  }
+
+  h2 {
+    font-size: 42px;
+  }
+
+  .stops-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .stop-card {
+    min-height: 280px;
+    padding: 22px;
+  }
+
+  .stop-image {
+    height: 190px;
+  }
+
+  .lines-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .line-card {
+    min-height: 120px;
+    padding: 26px;
+  }
+
+  .line-card h3 {
+    font-size: 26px;
+  }
+
+  .line-detail {
+    max-width: 1120px;
+  }
+
+  .route-stops {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+
+  .stop-detail {
+    grid-template-columns: minmax(420px, 0.8fr) minmax(480px, 1.2fr);
+    gap: 48px;
+  }
+
+  .stop-detail-image {
+    height: 430px;
   }
 }
