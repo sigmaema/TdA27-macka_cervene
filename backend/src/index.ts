@@ -36,6 +36,7 @@ interface LineTrip extends RowDataPacket {
   line_id: number;
   direction: "outbound" | "inbound";
   departure_time: string;
+  wheelchair_accessible?: boolean;
 }
 
 interface LineDirection extends RowDataPacket {
@@ -80,7 +81,7 @@ interface TimetableRow extends RowDataPacket {
 }
 
 const defaultStopServiceInfo = {
-  platform: { name: "Nástupiště 1" },
+  platform: { name: "Nástupiště 1", is_temporary: false },
   boarding_type: "regular",
   alighting_type: "regular",
   wheelchair_accessible: true,
@@ -610,7 +611,7 @@ app.get("/api/v1/lines/:lineId/trips", async (req, res) => {
     return;
   }
   const [trips] = await db.execute<LineTrip[]>(
-    `SELECT lt.id, r.id AS route_id, r.direction, lt.departure_time
+    `SELECT lt.id, r.id AS route_id, r.direction, lt.departure_time, lt.wheelchair_accessible
      FROM line_trips lt
      JOIN routes r ON r.id = lt.route_id
      WHERE r.line_id = ? ORDER BY lt.departure_time, lt.id`,
@@ -628,6 +629,8 @@ app.get("/api/v1/lines/:lineId/trips", async (req, res) => {
       destination: stopSummary(stops[stops.length - 1]),
       departure_time: departure.time,
       departure_day_offset: departure.dayOffset,
+      wheelchair_accessible: Boolean(trip.wheelchair_accessible),
+      service_notices: [],
     });
   }
   res.status(200).json(summaries);
@@ -700,7 +703,7 @@ app.get("/api/v1/trips/:id", async (req, res) => {
     return;
   }
   const [[trip]] = await db.execute<LineTrip[]>(
-        `SELECT lt.id, lt.route_id, r.line_id, r.direction,
+        `SELECT lt.id, lt.route_id, r.line_id, r.direction, lt.wheelchair_accessible,
           lt.departure_time,
             tl.number, tl.name, tl.type, tl.color
      FROM line_trips lt
@@ -738,6 +741,8 @@ app.get("/api/v1/trips/:id", async (req, res) => {
     destination,
     departure_time: tripDeparture.time,
     departure_day_offset: tripDeparture.dayOffset,
+    wheelchair_accessible: Boolean(trip.wheelchair_accessible),
+    service_notices: [],
     stops: stops.map((stop) => ({
       id: stop.id,
       name: stop.name,
