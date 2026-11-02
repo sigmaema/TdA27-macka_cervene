@@ -353,16 +353,19 @@ async function seedActualNetworkData() {
     routeStopIds.set(routeStopRef, result.insertId);
   }
 
+  const tripIdMap = new Map<number, number>(); // Přidáme mapování pro ID
+
   for (const trip of sourceTrips) {
     const routeId = routeIds.get(String(trip.route_ref));
     if (!routeId) continue;
     const firstTime = stopTimes.find((item) => Number(item.trip_id) === Number(trip.id));
-    await db.execute(
+    
+    // Změněno: Necháme ID auto-inkrementovat a výsledek si uložíme do mapy
+    const [result] = await db.execute<ResultSetHeader>(
       `INSERT INTO line_trips
-        (id, route_id, source_trip_id, service_ref, headsign, block_ref, wheelchair_accessible, departure_time)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (route_id, source_trip_id, service_ref, headsign, block_ref, wheelchair_accessible, departure_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
-        Number(trip.id),
         routeId,
         String(trip.source_trip_id),
         String(trip.service_ref),
@@ -372,12 +375,14 @@ async function seedActualNetworkData() {
         String(firstTime?.departure_time || "00:00:00"),
       ],
     );
+    tripIdMap.set(Number(trip.id), result.insertId);
   }
 
   for (const stopTime of stopTimes) {
-    const tripId = Number(stopTime.trip_id);
+    const oldTripId = Number(stopTime.trip_id);
+    const tripId = tripIdMap.get(oldTripId); // Použijeme nové auto-increment ID
     const routeStopId = routeStopIds.get(String(stopTime.route_stop_ref));
-    if (!routeStopId) continue;
+    if (!tripId || !routeStopId) continue;
     await db.execute(
       "INSERT INTO trip_timetables (trip_id, route_stop_id, arrival_time, departure_time) VALUES (?, ?, ?, ?)",
       [tripId, routeStopId, String(stopTime.arrival_time), String(stopTime.departure_time)],
