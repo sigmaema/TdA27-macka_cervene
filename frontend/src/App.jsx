@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getHealth, getTeam, getLine, getLines, getStop, getStops, getStopLines } from "./api";
+import { getHealth, getTeam, getLine, getLines, getTrip, getStop, getStops, getStopLines } from "./api";
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -8,6 +8,7 @@ export default function App() {
   const [stopLines, setStopLines] = useState({});
   const [lines, setLines] = useState([]);
   const [selectedLine, setSelectedLine] = useState(null);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const [selectedDirection, setSelectedDirection] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,9 +19,11 @@ export default function App() {
 
   const stopId = path.match(/^\/stops\/(\d+)\/?$/)?.[1];
   const lineId = path.match(/^\/lines\/(\d+)\/?$/)?.[1];
+  const tripId = path.match(/^\/trips\/(\d+)\/?$/)?.[1];
   const isLines = path === "/lines" || path === "/lines/";
   const isDetail = Boolean(stopId);
   const isLineDetail = Boolean(lineId);
+  const isTripDetail = Boolean(tripId);
   const fromLineId = new URLSearchParams(query).get("fromLine");
 
   function navigate(nextPath, restoreScroll = false, nextQuery = "") {
@@ -39,7 +42,12 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (stopId) {
+    if (tripId) {
+      setSelectedTrip(null);
+      getTrip(tripId)
+        .then(setSelectedTrip)
+        .catch((error) => console.error("Nepodařilo se načíst detail spoje:", error));
+    } else if (stopId) {
       setSelectedStop(null);
       setStopError(null);
       getStop(stopId)
@@ -80,7 +88,7 @@ export default function App() {
     getTeam()
       .then(setTeam)
       .catch((error) => console.error("Nepodařilo se načíst tým:", error));
-  }, [stopId, lineId, isLines, query]);
+  }, [stopId, lineId, tripId, isLines, query]);
 
   function normalizeSearchText(value) {
     return value
@@ -124,10 +132,12 @@ export default function App() {
         <section className="hero">
           <div>
             <p className="eyebrow">Mapa města</p>
-            <h1>{isDetail ? "Detail zastávky" : isLineDetail ? "Detail linky" : isLines ? "Linky" : "Zastávky"}</h1>
+            <h1>{isTripDetail ? "Detail spoje" : isDetail ? "Detail zastávky" : isLineDetail ? "Detail linky" : isLines ? "Linky" : "Zastávky"}</h1>
             <p className="hero-copy">
               {isDetail
-                ? "Vybavení, přístupnost a poloha vybrané zastávky."
+                ? "Plánovaný odjezd a zastávky spoje na trase."
+                : isDetail
+                  ? "Vybavení, přístupnost a poloha vybrané zastávky."
                 : isLineDetail
                   ? "Směry a pořadí zastávek na trase."
                   : isLines
@@ -153,7 +163,32 @@ export default function App() {
             {healthStatus === "ok" && <span className="health-label">Stav API: OK</span>}
           </div>
 
-          {isLineDetail ? (
+          {isTripDetail ? (
+            selectedTrip ? (
+              <article className="trip-detail">
+                <button className="back-button" onClick={() => navigate(`/lines/${selectedTrip.line.id}`)}>← Zpět na detail linky</button>
+                <p className="eyebrow">Spoj linky {selectedTrip.line.number}</p>
+                <h3>{selectedTrip.line.name}</h3>
+                <div className="trip-summary">
+                  <strong>{selectedTrip.departure_time}</strong>
+                  <span>{selectedTrip.direction_name}</span>
+                </div>
+                <ol className="route-stops">
+                  {selectedTrip.stops.map((stop) => (
+                    <li key={stop.id}>
+                      <button className="route-stop" onClick={() => openStop(stop.id, selectedTrip.line.id)}>
+                        <span className="route-stop-order">{stop.order}</span>
+                        <span>{stop.name}</span>
+                        <span className="stop-times">{stop.arrival_time} / {stop.departure_time}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ) : (
+              <div className="empty-state"><strong>Načítání detailu spoje…</strong></div>
+            )
+          ) : isLineDetail ? (
             selectedLine ? (
               <article className="line-detail">
                 <div className="line-detail-heading">
@@ -173,6 +208,16 @@ export default function App() {
                       onClick={() => setSelectedDirection(index)}
                     >
                       {direction.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="trip-list">
+                  <p className="eyebrow">Spoje</p>
+                  {selectedLine.trips.map((trip) => (
+                    <button className="trip-row" key={trip.id} onClick={() => navigate(`/trips/${trip.id}`)}>
+                      <strong>{trip.departure_time}</strong>
+                      <span>{trip.direction === "outbound" ? "Směr tam" : "Směr zpět"}</span>
+                      <span className="trip-link">Detail spoje →</span>
                     </button>
                   ))}
                 </div>

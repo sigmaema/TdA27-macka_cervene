@@ -25,6 +25,12 @@ export async function getLine(id) {
   return res.json();
 }
 
+export async function getTrip(id) {
+  const res = await fetch(`${API_URL}/v1/trips/${id}`);
+  if (!res.ok) throw new Error(`Trip request failed with status ${res.status}`);
+  return res.json();
+}
+
 export async function getStops() {
   const res = await fetch(`${API_URL}/v1/stops`);
   if (!res.ok) throw new Error(`Stops request failed with status ${res.status}`);

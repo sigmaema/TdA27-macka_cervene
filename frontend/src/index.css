@@ -437,6 +437,70 @@ tbody tr:hover {
   max-width: 760px;
 }
 
+.trip-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 30px;
+}
+
+.trip-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d5e3f0;
+  background: #f8fbff;
+  color: #14213d;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.trip-row:hover {
+  border-color: #0070BB;
+  background: #dbeeff;
+}
+
+.trip-row strong {
+  color: #0070BB;
+  font-size: 21px;
+}
+
+.trip-link {
+  color: #63718a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.trip-detail {
+  max-width: 760px;
+}
+
+.trip-detail h3 {
+  margin: 0 0 18px;
+  color: #14213d;
+  font-size: 36px;
+}
+
+.trip-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.trip-summary strong {
+  color: #0070BB;
+  font-size: 32px;
+}
+
+.trip-summary span {
+  color: #63718a;
+  font-weight: 700;
+}
+
 .line-detail-heading {
   display: grid;
   gap: 8px;
@@ -521,6 +585,14 @@ tbody tr:hover {
   background: #0070BB;
   color: #ffffff;
   font-weight: 700;
+}
+
+.stop-times {
+  margin-left: auto;
+  color: #0070BB;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .stop-card {
@@ -816,6 +888,14 @@ tbody tr:hover {
 
   .line-detail-title {
     white-space: normal;
+  }
+
+  .trip-row {
+    grid-template-columns: 70px 1fr;
+  }
+
+  .trip-link {
+    grid-column: 2;
   }
 }
 

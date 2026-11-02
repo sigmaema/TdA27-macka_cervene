@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "description": "Výchozí denní spoje dopravní sítě Think different Academy. Datové identifikátory jsou inspirovány provozním/GTFS značením: číselné id je aplikační identifikátor a source_trip_id je stabilní externí reference.",
+  "trips": [
+    {
+      "id": 101001,
+      "source_trip_id": "T00101070001",
+      "line_ref": "L001",
+      "route_ref": "R00101",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Stack Garden",
+      "block_ref": "A01",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 102001,
+      "source_trip_id": "T00102233201",
+      "line_ref": "L001",
+      "route_ref": "R00102",
+      "service_ref": "D",
+      "direction_id": 1,
+      "headsign": "Turing Terminal",
+      "block_ref": "A02",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 201001,
+      "source_trip_id": "T00201070001",
+      "line_ref": "L002",
+      "route_ref": "R00201",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Campus Gate",
+      "block_ref": "B01",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 202001,
+      "source_trip_id": "T00202070001",
+      "line_ref": "L002",
+      "route_ref": "R00202",
+      "service_ref": "D",
+      "direction_id": 1,
+      "headsign": "Hopper Hall",
+      "block_ref": "B02",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 201002,
+      "source_trip_id": "T00201200001",
+      "line_ref": "L002",
+      "route_ref": "R00201",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Campus Gate",
+      "block_ref": "B03",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 202002,
+      "source_trip_id": "T00202200901",
+      "line_ref": "L002",
+      "route_ref": "R00202",
+      "service_ref": "D",
+      "direction_id": 1,
+      "headsign": "Hopper Hall",
+      "block_ref": "B04",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 201003,
+      "source_trip_id": "T00201224901",
+      "line_ref": "L002",
+      "route_ref": "R00201",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Campus Gate",
+      "block_ref": "B05",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 202003,
+      "source_trip_id": "T00202224901",
+      "line_ref": "L002",
+      "route_ref": "R00202",
+      "service_ref": "D",
+      "direction_id": 1,
+      "headsign": "Hopper Hall",
+      "block_ref": "B06",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301001,
+      "source_trip_id": "T00301064201",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C01",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301002,
+      "source_trip_id": "T00301071201",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C02",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301003,
+      "source_trip_id": "T00301141801",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C03",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301004,
+      "source_trip_id": "T00301154301",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C04",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301005,
+      "source_trip_id": "T00301155801",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C05",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 302001,
+      "source_trip_id": "T00302153001",
+      "line_ref": "L003",
+      "route_ref": "R00302",
+      "service_ref": "D",
+      "direction_id": 1,
+      "headsign": "Edison East",
+      "block_ref": "C06",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301006,
+      "source_trip_id": "T00301222501",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C07",
+      "wheelchair_accessible": true
+    },
+    {
+      "id": 301007,
+      "source_trip_id": "T00301235201",
+      "line_ref": "L003",
+      "route_ref": "R00301",
+      "service_ref": "D",
+      "direction_id": 0,
+      "headsign": "Quantum Commons",
+      "block_ref": "C08",
+      "wheelchair_accessible": true
+    }
+  ]
+}

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS team_member (
 
 CREATE TABLE IF NOT EXISTS stops (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  source_ref VARCHAR(32) UNIQUE,
   name VARCHAR(255) NOT NULL,
   `lines` VARCHAR(255) NOT NULL DEFAULT '',
   transfer_lines VARCHAR(255) NOT NULL DEFAULT '',
@@ -40,11 +41,38 @@ CREATE TABLE IF NOT EXISTS transit_lines (
   color VARCHAR(7) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS line_trips (
+CREATE TABLE IF NOT EXISTS routes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   line_id INT NOT NULL,
   direction ENUM('outbound', 'inbound') NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  source_ref VARCHAR(32) NOT NULL UNIQUE,
   FOREIGN KEY (line_id) REFERENCES transit_lines(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS route_stops (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  route_id INT NOT NULL,
+  stop_id INT NOT NULL,
+  stop_order INT NOT NULL,
+  source_ref VARCHAR(64) NOT NULL UNIQUE,
+  stop_ref VARCHAR(32) NOT NULL,
+  UNIQUE KEY unique_route_stop (route_id, stop_id),
+  UNIQUE KEY unique_route_order (route_id, stop_order),
+  FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE,
+  FOREIGN KEY (stop_id) REFERENCES stops(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS line_trips (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  route_id INT NOT NULL,
+  source_trip_id VARCHAR(64) UNIQUE,
+  service_ref VARCHAR(32),
+  headsign VARCHAR(255),
+  block_ref VARCHAR(32),
+  wheelchair_accessible BOOLEAN NOT NULL DEFAULT FALSE,
+  departure_time TIME NOT NULL,
+  FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS line_directions (

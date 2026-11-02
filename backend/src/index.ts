@@ -30,15 +30,27 @@ interface LineInput {
   color: string;
 }
 
+interface LineTrip extends RowDataPacket {
+  id: number;
+  route_id: number;
+  line_id: number;
+  direction: "outbound" | "inbound";
+  departure_time: string;
+}
+
 interface LineDirection extends RowDataPacket {
   id: number;
   line_id: number;
   name: string;
+  direction: "outbound" | "inbound";
 }
 
 interface Stop extends RowDataPacket {
   id: number;
+  route_stop_id?: number;
   stop_order?: number;
+  arrival_time?: string;
+  departure_time?: string;
   name: string;
   lines: string;
   transfer_lines: string;
@@ -53,6 +65,20 @@ interface Stop extends RowDataPacket {
   has_display: boolean;
 }
 
+interface RouteStop extends RowDataPacket {
+  id: number;
+  route_id: number;
+  stop_id: number;
+  stop_order: number;
+}
+
+interface TimetableRow extends RowDataPacket {
+  trip_id: number;
+  route_stop_id: number;
+  arrival_time: string;
+  departure_time: string;
+}
+
 interface StopInput {
   name: string;
   image_url: string | null;
@@ -65,6 +91,8 @@ interface StopInput {
 const db = mysql.createPool(process.env.DATABASE_URL!);
 const schemaSql = await readFile(new URL("../docker/schema.sql", import.meta.url), "utf8");
 const stopsCsv = await readFile(new URL("../docker/seed/stops.csv", import.meta.url), "utf8");
+const stopsTimeSource = JSON.parse(await readFile(new URL("../docker/seed/stops_time.json", import.meta.url), "utf8"));
+const tripsSource = JSON.parse(await readFile(new URL("../docker/seed/trips.json", import.meta.url), "utf8"));
 
 function parseStopsCsv(csv: string) {
   const [header, ...rows] = csv.trim().split(/\r?\n/);
@@ -133,6 +161,9 @@ async function ensureStopColumns() {
   if (!names.has("transfer_lines")) {
     await db.query("ALTER TABLE stops ADD COLUMN transfer_lines VARCHAR(255) NOT NULL DEFAULT '' AFTER `lines`");
   }
+  if (!names.has("source_ref")) {
+    await db.query("ALTER TABLE stops ADD COLUMN source_ref VARCHAR(32) NULL UNIQUE AFTER id");
+  }
 }
 
 async function ensureLineColumns() {
@@ -141,6 +172,76 @@ async function ensureLineColumns() {
   if (!names.has("number") && names.has("code")) {
     await db.query("ALTER TABLE transit_lines CHANGE COLUMN code number VARCHAR(20) NOT NULL");
   }
+}
+
+async function ensureLineTripColumns() {
+  const [columns] = await db.query<RowDataPacket[]>("SHOW COLUMNS FROM line_trips");
+  const names = new Set(columns.map((column) => column.Field));
+  if (!names.has("route_id")) {
+    const [constraints] = await db.query<RowDataPacket[]>(
+      "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'line_trips' AND REFERENCED_TABLE_NAME IS NOT NULL",
+    );
+    for (const constraint of constraints) {
+      await db.query(`ALTER TABLE line_trips DROP FOREIGN KEY \`${constraint.CONSTRAINT_NAME}\``);
+    }
+    if (names.has("line_id")) await db.query("ALTER TABLE line_trips DROP COLUMN line_id");
+    if (names.has("direction")) await db.query("ALTER TABLE line_trips DROP COLUMN direction");
+    await db.query("ALTER TABLE line_trips ADD COLUMN route_id INT NULL AFTER id");
+  }
+  if (!columns.some((column) => column.Field === "departure_time")) {
+    await db.query("ALTER TABLE line_trips ADD COLUMN departure_time TIME NOT NULL DEFAULT '00:00:00' AFTER route_id");
+  }
+}
+
+async function ensureNetworkSourceColumns() {
+  const additions: Array<[string, string, string]> = [
+    ["routes", "source_ref", "VARCHAR(32) NULL UNIQUE"],
+    ["route_stops", "source_ref", "VARCHAR(64) NULL UNIQUE"],
+    ["route_stops", "stop_ref", "VARCHAR(32) NULL"],
+    ["line_trips", "source_trip_id", "VARCHAR(64) NULL UNIQUE"],
+    ["line_trips", "service_ref", "VARCHAR(32) NULL"],
+    ["line_trips", "headsign", "VARCHAR(255) NULL"],
+    ["line_trips", "block_ref", "VARCHAR(32) NULL"],
+    ["line_trips", "wheelchair_accessible", "BOOLEAN NOT NULL DEFAULT FALSE"],
+  ];
+  for (const [table, column, definition] of additions) {
+    const [columns] = await db.query<RowDataPacket[]>(`SHOW COLUMNS FROM ${table}`);
+    if (!columns.some((item) => item.Field === column)) {
+      await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  }
+}
+
+async function ensureLineTripForeignKey() {
+  const [constraints] = await db.query<RowDataPacket[]>(
+    "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'line_trips' AND COLUMN_NAME = 'route_id' AND REFERENCED_TABLE_NAME = 'routes'",
+  );
+  if (constraints.length === 0) {
+    await db.query("ALTER TABLE line_trips MODIFY route_id INT NOT NULL");
+    await db.query("ALTER TABLE line_trips ADD CONSTRAINT line_trips_route_fk FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE");
+  }
+}
+
+async function ensureRouteStopId() {
+  const [columns] = await db.query<RowDataPacket[]>("SHOW COLUMNS FROM route_stops");
+  if (!columns.some((column) => column.Field === "id")) {
+    await db.query("ALTER TABLE route_stops ADD COLUMN id INT NOT NULL AUTO_INCREMENT UNIQUE FIRST");
+    await db.query("ALTER TABLE route_stops DROP PRIMARY KEY");
+    await db.query("ALTER TABLE route_stops ADD PRIMARY KEY (id)");
+  }
+}
+
+async function ensureTimetableTable() {
+  await db.query(`CREATE TABLE IF NOT EXISTS trip_timetables (
+    trip_id INT NOT NULL,
+    route_stop_id INT NOT NULL,
+    arrival_time TIME NOT NULL,
+    departure_time TIME NOT NULL,
+    PRIMARY KEY (trip_id, route_stop_id),
+    FOREIGN KEY (trip_id) REFERENCES line_trips(id) ON DELETE CASCADE,
+    FOREIGN KEY (route_stop_id) REFERENCES route_stops(id) ON DELETE CASCADE,
+    CONSTRAINT timetable_time_order CHECK (arrival_time <= departure_time)
+  )`);
 }
 
 async function seedLines() {
@@ -156,12 +257,121 @@ async function seedLines() {
 }
 
 async function seedLineTrips() {
-  const [lines] = await db.query<TransitLine[]>("SELECT id FROM transit_lines ORDER BY id");
+  const [routes] = await db.query<LineDirection[]>("SELECT id FROM routes ORDER BY id");
+  const departureTimes = ["06:30:00", "06:45:00"];
   await db.query("DELETE FROM line_trips");
-  for (const line of lines) {
+  for (const [index, route] of routes.entries()) {
     await db.execute(
-      "INSERT INTO line_trips (line_id, direction) VALUES (?, 'outbound'), (?, 'inbound')",
-      [line.id, line.id],
+      "INSERT INTO line_trips (route_id, departure_time) VALUES (?, ?)",
+      [route.id, departureTimes[index % 2]],
+    );
+  }
+}
+
+function addMinutes(time: string, minutes: number) {
+  const [hours, mins] = time.split(":").map(Number);
+  const total = hours * 60 + mins + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}:00`;
+}
+
+async function seedTimetables() {
+  const [trips] = await db.query<LineTrip[]>("SELECT id, route_id, departure_time FROM line_trips ORDER BY id");
+  const [routeStops] = await db.query<RouteStop[]>("SELECT id, route_id, stop_order FROM route_stops ORDER BY route_id, stop_order");
+  await db.query("DELETE FROM trip_timetables");
+  for (const trip of trips) {
+    const stops = routeStops.filter((routeStop) => routeStop.route_id === trip.route_id);
+    for (const routeStop of stops) {
+      const arrival = addMinutes(trip.departure_time, (routeStop.stop_order - 1) * 5);
+      const departure = addMinutes(arrival, 1);
+      await db.execute(
+        "INSERT INTO trip_timetables (trip_id, route_stop_id, arrival_time, departure_time) VALUES (?, ?, ?, ?)",
+        [trip.id, routeStop.id, arrival, departure],
+      );
+    }
+  }
+}
+
+async function seedActualNetworkData() {
+  const lineNumberByRef: Record<string, string> = { L001: "128", L002: "136", L003: "676" };
+  const stopTimes = stopsTimeSource.stop_times as Array<Record<string, string | number>>;
+  const sourceTrips = tripsSource.trips as Array<Record<string, string | number | boolean>>;
+  const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines");
+  const lineIds = new Map(lines.map((line) => [line.number, line.id]));
+  const [stops] = await db.query<Stop[]>("SELECT id, name FROM stops");
+  const stopIds = new Map(stops.map((stop) => [stop.name, stop.id]));
+
+  await db.query("UPDATE stops SET source_ref = NULL");
+  for (const stopTime of stopTimes) {
+    const stopId = stopIds.get(String(stopTime.stop_name));
+    if (stopId) {
+      await db.execute("UPDATE stops SET source_ref = ? WHERE id = ?", [String(stopTime.stop_ref), stopId]);
+    }
+  }
+
+  await db.query("DELETE FROM trip_timetables");
+  await db.query("DELETE FROM line_trips");
+  await db.query("DELETE FROM route_stops");
+  await db.query("DELETE FROM routes");
+
+  const routeIds = new Map<string, number>();
+  const routeStopIds = new Map<string, number>();
+  const insertedRouteStops = new Set<string>();
+  const routeRefs = [...new Set(stopTimes.map((item) => String(item.route_ref)))];
+  for (const routeRef of routeRefs) {
+    const trip = sourceTrips.find((item) => String(item.route_ref) === routeRef);
+    if (!trip) continue;
+    const lineId = lineIds.get(lineNumberByRef[String(trip.line_ref)]);
+    if (!lineId) continue;
+    const direction = Number(trip.direction_id) === 0 ? "outbound" : "inbound";
+    const [result] = await db.execute<ResultSetHeader>(
+      "INSERT INTO routes (line_id, direction, name, source_ref) VALUES (?, ?, ?, ?)",
+      [lineId, direction, String(trip.headsign), routeRef],
+    );
+    routeIds.set(routeRef, result.insertId);
+  }
+
+  for (const stopTime of stopTimes) {
+    const routeId = routeIds.get(String(stopTime.route_ref));
+    const stopId = stopIds.get(String(stopTime.stop_name));
+    if (!routeId || !stopId) continue;
+    const routeStopRef = String(stopTime.route_stop_ref);
+    if (insertedRouteStops.has(routeStopRef)) continue;
+    const [result] = await db.execute<ResultSetHeader>(
+      "INSERT INTO route_stops (route_id, stop_id, stop_order, source_ref, stop_ref) VALUES (?, ?, ?, ?, ?)",
+      [routeId, stopId, Number(stopTime.stop_sequence), routeStopRef, String(stopTime.stop_ref)],
+    );
+    insertedRouteStops.add(routeStopRef);
+    routeStopIds.set(routeStopRef, result.insertId);
+  }
+
+  for (const trip of sourceTrips) {
+    const routeId = routeIds.get(String(trip.route_ref));
+    if (!routeId) continue;
+    const firstTime = stopTimes.find((item) => Number(item.trip_id) === Number(trip.id));
+    await db.execute(
+      `INSERT INTO line_trips
+        (id, route_id, source_trip_id, service_ref, headsign, block_ref, wheelchair_accessible, departure_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        Number(trip.id),
+        routeId,
+        String(trip.source_trip_id),
+        String(trip.service_ref),
+        String(trip.headsign),
+        String(trip.block_ref),
+        Boolean(trip.wheelchair_accessible),
+        String(firstTime?.departure_time || "00:00:00"),
+      ],
+    );
+  }
+
+  for (const stopTime of stopTimes) {
+    const tripId = Number(stopTime.trip_id);
+    const routeStopId = routeStopIds.get(String(stopTime.route_stop_ref));
+    if (!routeStopId) continue;
+    await db.execute(
+      "INSERT INTO trip_timetables (trip_id, route_stop_id, arrival_time, departure_time) VALUES (?, ?, ?, ?)",
+      [tripId, routeStopId, String(stopTime.arrival_time), String(stopTime.departure_time)],
     );
   }
 }
@@ -175,8 +385,8 @@ async function seedLineRoutes() {
   const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines ORDER BY id");
   const [stops] = await db.query<Stop[]>("SELECT id, \`lines\` FROM stops ORDER BY id");
   const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
-  await db.query("DELETE FROM line_direction_stops");
-  await db.query("DELETE FROM line_directions");
+  await db.query("DELETE FROM route_stops");
+  await db.query("DELETE FROM routes");
 
   for (const line of lines) {
     const lineStops = (routeStops[line.number] || [])
@@ -187,13 +397,14 @@ async function seedLineRoutes() {
       { name: "Směr okraj města", orderedStops: [...lineStops].reverse() },
     ];
     for (const direction of directions) {
+      const directionValue = direction.name === "Směr centrum" ? "outbound" : "inbound";
       const [result] = await db.execute<ResultSetHeader>(
-        "INSERT INTO line_directions (line_id, name) VALUES (?, ?)",
-        [line.id, direction.name],
+        "INSERT INTO routes (line_id, direction, name) VALUES (?, ?, ?)",
+        [line.id, directionValue, direction.name],
       );
       for (const [index, stop] of direction.orderedStops.entries()) {
         await db.execute(
-          "INSERT INTO line_direction_stops (direction_id, stop_id, stop_order) VALUES (?, ?, ?)",
+          "INSERT INTO route_stops (route_id, stop_id, stop_order) VALUES (?, ?, ?)",
           [result.insertId, stop.id, index + 1],
         );
       }
@@ -210,10 +421,14 @@ for (let attempt = 1; ; attempt++) {
     }
     await ensureStopColumns();
     await ensureLineColumns();
+    await ensureLineTripColumns();
+    await ensureRouteStopId();
+    await ensureNetworkSourceColumns();
+    await ensureTimetableTable();
     await seedLines();
-    await seedLineTrips();
     await seedStops();
-    await seedLineRoutes();
+    await seedActualNetworkData();
+    await ensureLineTripForeignKey();
     break;
   } catch (error) {
     if (attempt === 60) throw error;
@@ -316,6 +531,26 @@ function stopResponse(stop: Stop) {
   };
 }
 
+function apiTime(value: string) {
+  const [hours, minutes] = String(value).split(":").map(Number);
+  return {
+    time: `${String(hours % 24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+    dayOffset: Math.floor(hours / 24),
+  };
+}
+
+async function getRouteStops(routeId: number) {
+  const [stops] = await db.execute<Stop[]>(
+    `SELECT rs.id AS route_stop_id, s.id, s.name, s.image_url, rs.stop_order
+     FROM route_stops rs
+     JOIN stops s ON s.id = rs.stop_id
+     WHERE rs.route_id = ?
+     ORDER BY rs.stop_order`,
+    [routeId],
+  );
+  return stops;
+}
+
 const app = express();
 const ADMIN_API_KEY = "Kyqc49jIM+5+D0Sed8ZQ671gxkd7W/bBTWjDtZ0Zrgk=";
 
@@ -351,6 +586,41 @@ app.get("/api/v1/lines", async (_req, res) => {
   res.status(200).json(lines);
 });
 
+app.get("/api/v1/lines/:lineId/trips", async (req, res) => {
+  const lineId = parseStopId(String(req.params.lineId));
+  if (lineId === null) {
+    res.status(400).json({ error: "Invalid line ID" });
+    return;
+  }
+  const [[line]] = await db.execute<TransitLine[]>("SELECT id, number, name, type, color FROM transit_lines WHERE id = ?", [lineId]);
+  if (!line) {
+    res.status(404).json({ error: "Line not found" });
+    return;
+  }
+  const [trips] = await db.execute<LineTrip[]>(
+    `SELECT lt.id, r.id AS route_id, r.direction, lt.departure_time
+     FROM line_trips lt
+     JOIN routes r ON r.id = lt.route_id
+     WHERE r.line_id = ? ORDER BY lt.departure_time, lt.id`,
+    [lineId],
+  );
+  const summaries = [];
+  for (const trip of trips) {
+    const stops = await getRouteStops(trip.route_id);
+    const departure = apiTime(trip.departure_time);
+    summaries.push({
+      id: trip.id,
+      line,
+      direction: trip.direction,
+      origin: stopResponse(stops[0]),
+      destination: stopResponse(stops[stops.length - 1]),
+      departure_time: departure.time,
+      departure_day_offset: departure.dayOffset,
+    });
+  }
+  res.status(200).json(summaries);
+});
+
 app.get("/api/v1/lines/:id", async (req, res) => {
   const id = parseStopId(String(req.params.id));
   if (id === null) {
@@ -366,7 +636,7 @@ app.get("/api/v1/lines/:id", async (req, res) => {
     return;
   }
   const [directions] = await db.execute<LineDirection[]>(
-    "SELECT id, line_id, name FROM line_directions WHERE line_id = ? ORDER BY id",
+    "SELECT id, line_id, direction, name FROM routes WHERE line_id = ? ORDER BY id",
     [id],
   );
   const directionResponses: Array<{
@@ -376,11 +646,11 @@ app.get("/api/v1/lines/:id", async (req, res) => {
   }> = [];
   for (const direction of directions) {
     const [stops] = await db.execute<Stop[]>(
-      `SELECT s.id, s.name, s.image_url, lds.stop_order
-       FROM line_direction_stops lds
-       JOIN stops s ON s.id = lds.stop_id
-       WHERE lds.direction_id = ?
-       ORDER BY lds.stop_order`,
+      `SELECT s.id, s.name, s.image_url, rs.stop_order
+       FROM route_stops rs
+       JOIN stops s ON s.id = rs.stop_id
+       WHERE rs.route_id = ?
+       ORDER BY rs.stop_order`,
       [direction.id],
     );
     directionResponses.push({
@@ -394,8 +664,8 @@ app.get("/api/v1/lines/:id", async (req, res) => {
       })),
     });
   }
-  const [trips] = await db.execute<RowDataPacket[]>(
-    "SELECT id, direction FROM line_trips WHERE line_id = ? ORDER BY id",
+  const [trips] = await db.execute<LineTrip[]>(
+    "SELECT lt.id, r.route_id, r.direction, lt.departure_time FROM line_trips lt JOIN routes r ON r.id = lt.route_id WHERE r.line_id = ? ORDER BY lt.departure_time, lt.id",
     [id],
   );
   res.status(200).json({
@@ -403,9 +673,66 @@ app.get("/api/v1/lines/:id", async (req, res) => {
     trips: trips.map((trip, index) => ({
       id: trip.id,
       direction: trip.direction,
+      departure_time: apiTime(trip.departure_time).time,
+      departure_day_offset: apiTime(trip.departure_time).dayOffset,
       stops: directionResponses[index]?.stops || [],
     })),
     directions: directionResponses,
+  });
+});
+
+app.get("/api/v1/trips/:id", async (req, res) => {
+  const id = parseStopId(String(req.params.id));
+  if (id === null) {
+    res.status(400).json({ error: "Invalid trip ID" });
+    return;
+  }
+  const [[trip]] = await db.execute<LineTrip[]>(
+        `SELECT lt.id, lt.route_id, r.line_id, r.direction,
+          lt.departure_time,
+            tl.number, tl.name, tl.type, tl.color
+     FROM line_trips lt
+     JOIN routes r ON r.id = lt.route_id
+     JOIN transit_lines tl ON tl.id = r.line_id
+     WHERE lt.id = ?`,
+    [id],
+  );
+  if (!trip) {
+    res.status(404).json({ error: "Trip not found" });
+    return;
+  }
+  const [[direction]] = await db.execute<LineDirection[]>(
+    "SELECT id, line_id, direction, name FROM routes WHERE id = ?",
+    [trip.route_id],
+  );
+  const [stops] = await db.execute<Stop[]>(
+        `SELECT rs.id AS route_stop_id, s.id, s.name, s.image_url, rs.stop_order,
+          tt.arrival_time, tt.departure_time
+    FROM route_stops rs
+    JOIN stops s ON s.id = rs.stop_id
+    LEFT JOIN trip_timetables tt ON tt.trip_id = ? AND tt.route_stop_id = rs.id
+    WHERE rs.route_id = ?
+    ORDER BY rs.stop_order`,
+    [trip.id, direction.id],
+  );
+  res.status(200).json({
+    id: trip.id,
+    line: { id: trip.line_id, number: trip.number, name: trip.name, type: trip.type, color: trip.color },
+    direction: trip.direction,
+    direction_name: direction.name,
+    departure_time: apiTime(trip.departure_time).time,
+    departure_day_offset: apiTime(trip.departure_time).dayOffset,
+    stops: stops.map((stop) => ({
+      route_stop_id: stop.route_stop_id,
+      id: stop.id,
+      name: stop.name,
+      image_url: stop.image_url,
+      order: stop.stop_order,
+      arrival_time: apiTime(stop.arrival_time || "00:00").time,
+      arrival_day_offset: apiTime(stop.arrival_time || "00:00").dayOffset,
+      departure_time: apiTime(stop.departure_time || "00:00").time,
+      departure_day_offset: apiTime(stop.departure_time || "00:00").dayOffset,
+    })),
   });
 });
 
@@ -492,14 +819,59 @@ app.get("/api/v1/stops/:id/lines", async (req, res) => {
   }
   const [lines] = await db.execute<TransitLine[]>(
     `SELECT DISTINCT tl.id, tl.number, tl.name, tl.type, tl.color
-     FROM line_direction_stops lds
-     JOIN line_directions ld ON ld.id = lds.direction_id
-     JOIN transit_lines tl ON tl.id = ld.line_id
-     WHERE lds.stop_id = ?
+     FROM route_stops rs
+     JOIN routes r ON r.id = rs.route_id
+     JOIN transit_lines tl ON tl.id = r.line_id
+     WHERE rs.stop_id = ?
      ORDER BY tl.number`,
     [id],
   );
   res.status(200).json(lines);
+});
+
+app.get("/api/v1/stops/:stopId/departures", async (req, res) => {
+  const stopId = parseStopId(String(req.params.stopId));
+  if (stopId === null) {
+    res.status(400).json({ error: "Invalid stop ID" });
+    return;
+  }
+  const [[stop]] = await db.execute<Stop[]>("SELECT id FROM stops WHERE id = ?", [stopId]);
+  if (!stop) {
+    res.status(404).json({ error: "Stop not found" });
+    return;
+  }
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT lt.id AS trip_id, r.direction, lt.departure_time AS trip_departure,
+            tt.arrival_time, tt.departure_time,
+            tl.id AS line_id, tl.number, tl.name, tl.type, tl.color,
+            destination.id AS destination_id, destination.name AS destination_name,
+            destination.image_url AS destination_image_url
+     FROM trip_timetables tt
+     JOIN line_trips lt ON lt.id = tt.trip_id
+     JOIN routes r ON r.id = lt.route_id
+     JOIN transit_lines tl ON tl.id = r.line_id
+     JOIN route_stops current_rs ON current_rs.id = tt.route_stop_id
+     JOIN route_stops last_rs ON last_rs.route_id = r.id
+       AND last_rs.stop_order = (SELECT MAX(last_order.stop_order) FROM route_stops last_order WHERE last_order.route_id = r.id)
+     JOIN stops destination ON destination.id = last_rs.stop_id
+     WHERE current_rs.stop_id = ?
+     ORDER BY tt.departure_time, lt.id`,
+    [stopId],
+  );
+  res.status(200).json(rows.map((row) => {
+    const arrival = apiTime(row.arrival_time);
+    const departure = apiTime(row.departure_time);
+    return {
+      trip_id: row.trip_id,
+      line: { id: row.line_id, number: row.number, name: row.name, type: row.type, color: row.color },
+      direction: row.direction,
+      destination: { id: row.destination_id, name: row.destination_name, image_url: row.destination_image_url },
+      arrival_time: arrival.time,
+      arrival_day_offset: arrival.dayOffset,
+      departure_time: departure.time,
+      departure_day_offset: departure.dayOffset,
+    };
+  }));
 });
 
 app.post("/api/v1/stops", requireAdminApiKey, async (req, res) => {
