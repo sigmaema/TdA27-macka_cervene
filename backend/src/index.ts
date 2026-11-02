@@ -696,7 +696,7 @@ app.get("/api/v1/lines/:id", async (req, res) => {
     });
   }
   const [trips] = await db.execute<LineTrip[]>(
-    "SELECT lt.id, r.route_id, r.direction, lt.departure_time FROM line_trips lt JOIN routes r ON r.id = lt.route_id WHERE r.line_id = ? ORDER BY lt.departure_time, lt.id",
+    "SELECT lt.id, r.id, r.direction, lt.departure_time FROM line_trips lt JOIN routes r ON r.id = lt.route_id WHERE r.line_id = ? ORDER BY lt.departure_time, lt.id",
     [id],
   );
   res.status(200).json({
