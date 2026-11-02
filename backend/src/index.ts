@@ -79,6 +79,14 @@ interface TimetableRow extends RowDataPacket {
   departure_time: string;
 }
 
+const defaultStopServiceInfo = {
+  platform: { name: "Nástupiště 1" },
+  boarding_type: "regular",
+  alighting_type: "regular",
+  wheelchair_accessible: true,
+  service_notices: [],
+};
+
 interface StopInput {
   name: string;
   image_url: string | null;
@@ -248,9 +256,9 @@ async function seedLines() {
   await db.query("DELETE FROM transit_lines");
   await db.query(
     `INSERT INTO transit_lines (number, name, type, color) VALUES
-      ('128', 'Modrá linka', 'Městská', '#0070BB'),
-      ('136', 'Zelená linka', 'Příměstská', '#6DD4B1'),
-      ('676', 'Oranžová linka', 'Městská', '#F29F05')
+      ('A', 'Green Line', 'Městská', '#00B24B'),
+      ('B', 'Yellow Line', 'Městská', '#FFC20E'),
+      ('C', 'Red Line', 'Městská', '#ED1B2F')
      ON DUPLICATE KEY UPDATE
        name = VALUES(name), type = VALUES(type), color = VALUES(color)`,
   );
@@ -292,7 +300,7 @@ async function seedTimetables() {
 }
 
 async function seedActualNetworkData() {
-  const lineNumberByRef: Record<string, string> = { L001: "128", L002: "136", L003: "676" };
+  const lineNumberByRef: Record<string, string> = { L001: "A", L002: "B", L003: "C" };
   const stopTimes = stopsTimeSource.stop_times as Array<Record<string, string | number>>;
   const sourceTrips = tripsSource.trips as Array<Record<string, string | number | boolean>>;
   const [lines] = await db.query<TransitLine[]>("SELECT id, number FROM transit_lines");
@@ -531,6 +539,10 @@ function stopResponse(stop: Stop) {
   };
 }
 
+function stopSummary(stop: Stop | undefined) {
+  return stop ? { id: stop.id, name: stop.name, image_url: stop.image_url } : null;
+}
+
 function apiTime(value: string) {
   const [hours, minutes] = String(value).split(":").map(Number);
   return {
@@ -612,8 +624,8 @@ app.get("/api/v1/lines/:lineId/trips", async (req, res) => {
       id: trip.id,
       line,
       direction: trip.direction,
-      origin: stopResponse(stops[0]),
-      destination: stopResponse(stops[stops.length - 1]),
+      origin: stopSummary(stops[0]),
+      destination: stopSummary(stops[stops.length - 1]),
       departure_time: departure.time,
       departure_day_offset: departure.dayOffset,
     });
@@ -715,19 +727,23 @@ app.get("/api/v1/trips/:id", async (req, res) => {
     ORDER BY rs.stop_order`,
     [trip.id, direction.id],
   );
+  const origin = stopSummary(stops[0]);
+  const destination = stopSummary(stops[stops.length - 1]);
+  const tripDeparture = apiTime(trip.departure_time);
   res.status(200).json({
     id: trip.id,
     line: { id: trip.line_id, number: trip.number, name: trip.name, type: trip.type, color: trip.color },
     direction: trip.direction,
-    direction_name: direction.name,
-    departure_time: apiTime(trip.departure_time).time,
-    departure_day_offset: apiTime(trip.departure_time).dayOffset,
+    origin,
+    destination,
+    departure_time: tripDeparture.time,
+    departure_day_offset: tripDeparture.dayOffset,
     stops: stops.map((stop) => ({
-      route_stop_id: stop.route_stop_id,
       id: stop.id,
       name: stop.name,
       image_url: stop.image_url,
       order: stop.stop_order,
+      ...defaultStopServiceInfo,
       arrival_time: apiTime(stop.arrival_time || "00:00").time,
       arrival_day_offset: apiTime(stop.arrival_time || "00:00").dayOffset,
       departure_time: apiTime(stop.departure_time || "00:00").time,
@@ -866,6 +882,7 @@ app.get("/api/v1/stops/:stopId/departures", async (req, res) => {
       line: { id: row.line_id, number: row.number, name: row.name, type: row.type, color: row.color },
       direction: row.direction,
       destination: { id: row.destination_id, name: row.destination_name, image_url: row.destination_image_url },
+      ...defaultStopServiceInfo,
       arrival_time: arrival.time,
       arrival_day_offset: arrival.dayOffset,
       departure_time: departure.time,
