@@ -525,6 +525,21 @@ function parseStopId(value: string): number | null {
   return Number.isSafeInteger(id) && id >= 1 ? id : null;
 }
 
+function isValidServiceDate(value: unknown) {
+  if (value === undefined) return true;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function validateServiceDate(req: Request, res: Response) {
+  if (!isValidServiceDate(req.query.service_date)) {
+    res.status(400).json({ error: "Invalid service_date" });
+    return false;
+  }
+  return true;
+}
+
 function invalidStopId(res: Parameters<Parameters<typeof app.get>[1]>[1]) {
   return res.status(400).json({ error: "Invalid stop ID" });
 }
@@ -600,6 +615,7 @@ app.get("/api/v1/lines", async (_req, res) => {
 });
 
 app.get("/api/v1/lines/:lineId/trips", async (req, res) => {
+  if (!validateServiceDate(req, res)) return;
   const lineId = parseStopId(String(req.params.lineId));
   if (lineId === null) {
     res.status(400).json({ error: "Invalid line ID" });
@@ -697,6 +713,7 @@ app.get("/api/v1/lines/:id", async (req, res) => {
 });
 
 app.get("/api/v1/trips/:id", async (req, res) => {
+  if (!validateServiceDate(req, res)) return;
   const id = parseStopId(String(req.params.id));
   if (id === null) {
     res.status(400).json({ error: "Invalid trip ID" });
@@ -744,10 +761,12 @@ app.get("/api/v1/trips/:id", async (req, res) => {
     wheelchair_accessible: Boolean(trip.wheelchair_accessible),
     service_notices: [],
     stops: stops.map((stop) => ({
-      id: stop.id,
-      name: stop.name,
-      image_url: stop.image_url,
-      order: stop.stop_order,
+      stop_order: Number(stop.stop_order ?? 1),
+      stop: { 
+        id: Number(stop.id), 
+        name: String(stop.name), 
+        image_url: stop.image_url ?? null 
+      },
       ...defaultStopServiceInfo,
       arrival_time: apiTime(stop.arrival_time || "00:00").time,
       arrival_day_offset: apiTime(stop.arrival_time || "00:00").dayOffset,
@@ -851,6 +870,7 @@ app.get("/api/v1/stops/:id/lines", async (req, res) => {
 });
 
 app.get("/api/v1/stops/:stopId/departures", async (req, res) => {
+  if (!validateServiceDate(req, res)) return;
   const stopId = parseStopId(String(req.params.stopId));
   if (stopId === null) {
     res.status(400).json({ error: "Invalid stop ID" });

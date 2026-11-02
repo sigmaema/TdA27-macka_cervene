@@ -175,10 +175,10 @@ export default function App() {
                 </div>
                 <ol className="route-stops">
                   {selectedTrip.stops.map((stop) => (
-                    <li key={stop.id}>
-                      <button className="route-stop" onClick={() => openStop(stop.id, selectedTrip.line.id)}>
-                        <span className="route-stop-order">{stop.order}</span>
-                        <span>{stop.name}</span>
+                    <li key={stop.stop.id}>
+                      <button className="route-stop" onClick={() => openStop(stop.stop.id, selectedTrip.line.id)}>
+                        <span className="route-stop-order">{stop.stop_order}</span>
+                        <span>{stop.stop.name}</span>
                         <span className="stop-times">{stop.arrival_time} / {stop.departure_time}</span>
                       </button>
                     </li>
